@@ -105,6 +105,16 @@ spec:
         path: inputs
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Structured Credential Inputs
+        path: credential_inputs
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:yaml
+        - urn:alm:descriptor:com.tectonic.ui:advanced
+      - displayName: Credential Input Sources
+        path: input_sources
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:yaml
+        - urn:alm:descriptor:com.tectonic.ui:advanced
       - displayName: SSH Key Secret
         path: ssh_secret
         x-descriptors:
