@@ -14,7 +14,7 @@ spec:
     spec:
       serviceAccountName: resource-operator-controller-manager-job
       containers:
-        - name: "{{ ansible_operator_meta.name }}"
+        - name: resource-runner
           image: "{{ _runner_image }}"
           imagePullPolicy: "{{ _runner_pull_policy }}"
           env:
