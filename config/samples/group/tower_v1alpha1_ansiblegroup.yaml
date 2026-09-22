@@ -1,0 +1,15 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleGroup
+metadata:
+  name: beer-test
+spec:
+  connection_secret: awxaccess
+  name: beer-test
+  inventory: beer-inventory
+  description: beer test host group
+  state: present
+  hosts:
+    - beer-host-1
+  children: []
+  preserve_existing_hosts: true
+  preserve_existing_children: true

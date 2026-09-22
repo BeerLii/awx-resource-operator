@@ -25,7 +25,7 @@ BUILD_RUNNER ?= true
 CREATE_CR ?= false
 
 # Teardown configuration
-TEARDOWN_CR_KINDS ?= ansiblejob jobtemplate ansibleproject ansibleworkflow ansiblecredential ansibleschedule ansibleinstancegroup workflowtemplate ansibleinventory
+TEARDOWN_CR_KINDS ?= ansiblejob jobtemplate ansibleproject ansibleworkflow ansiblecredential ansibleschedule ansibleinstancegroup workflowtemplate ansibleinventory ansiblehost ansiblegroup
 TEARDOWN_BACKUP_KINDS ?=
 TEARDOWN_RESTORE_KINDS ?=
 OLM_SUBSCRIPTIONS ?=

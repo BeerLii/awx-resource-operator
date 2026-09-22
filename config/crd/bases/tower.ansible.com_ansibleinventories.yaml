@@ -62,6 +62,37 @@ spec:
                 description: The desired inventory variables for the inventory
                 additionalProperties:
                   x-kubernetes-preserve-unknown-fields: true
+              groups:
+                type: array
+                description: Host groups to create and manage in this inventory
+                items:
+                  type: object
+                  required:
+                  - name
+                  properties:
+                    name:
+                      type: string
+                      description: Host group name
+                    description:
+                      type: string
+                    variables:
+                      type: object
+                      additionalProperties:
+                        x-kubernetes-preserve-unknown-fields: true
+                    hosts:
+                      type: array
+                      items:
+                        type: string
+                    children:
+                      type: array
+                      items:
+                        type: string
+                    preserve_existing_hosts:
+                      type: boolean
+                      default: false
+                    preserve_existing_children:
+                      type: boolean
+                      default: false
               connection_secret:
                 type: string
                 description: |

@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: Ansible
+  description: Host group role for creating groups in an AWX inventory from a Kubernetes cluster.
+  company: Red Hat, Inc.
+  license: MIT
+  min_ansible_version: 2.9
+  galaxy_tags: []
+
+dependencies: []
+
+collections:
+  - operator_sdk.util
+  - kubernetes.core
+  - awx.awx

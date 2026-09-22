@@ -1,0 +1,82 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ansiblegroups.tower.ansible.com
+spec:
+  group: tower.ansible.com
+  names:
+    kind: AnsibleGroup
+    listKind: AnsibleGroupList
+    plural: ansiblegroups
+    singular: ansiblegroup
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Group is the Schema for the AWX inventory groups API
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            description: Spec defines the desired state of an AWX inventory group
+            required:
+            - name
+            - inventory
+            properties:
+              name:
+                type: string
+                description: The name of the host group
+              inventory:
+                type: string
+                description: Inventory name, ID, or named URL the group belongs to
+              description:
+                type: string
+                description: The description for the group
+              variables:
+                type: object
+                description: Group variables
+                additionalProperties:
+                  x-kubernetes-preserve-unknown-fields: true
+              hosts:
+                type: array
+                description: Host names, IDs, or named URLs to associate with the group
+                items:
+                  type: string
+              children:
+                type: array
+                description: Child group names, IDs, or named URLs to associate with the group
+                items:
+                  type: string
+              preserve_existing_hosts:
+                type: boolean
+                default: false
+                description: Preserve hosts already associated with the group
+              preserve_existing_children:
+                type: boolean
+                default: false
+                description: Preserve child groups already associated with the group
+              state:
+                type: string
+                default: present
+                enum: ["present", "absent", "exists"]
+                description: Desired state of the resource
+              connection_secret:
+                type: string
+                description: Kubernetes Secret containing the AWX host and token
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            description: Status defines the observed state of AnsibleGroup
+            x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}

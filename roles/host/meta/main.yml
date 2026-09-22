@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: Ansible
+  description: Host role for creating hosts in an AWX inventory from an openshift or k8s cluster.
+  company: Red Hat, Inc.
+
+  license: MIT
+
+  min_ansible_version: 2.9
+
+  galaxy_tags: []
+
+dependencies: []
+
+collections:
+  - operator_sdk.util
+  - kubernetes.core
+  - awx.awx

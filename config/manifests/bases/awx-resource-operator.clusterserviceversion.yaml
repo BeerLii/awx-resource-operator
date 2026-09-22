@@ -460,6 +460,80 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
+    - description: Define a new Host in awx
+      displayName: AWX Host
+      kind: AnsibleHost
+      name: ansiblehosts.tower.ansible.com
+      specDescriptors:
+      - displayName: Host Name
+        path: name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Host Description
+        path: description
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Host Inventory
+        path: inventory
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Host Enabled
+        path: enabled
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - displayName: Host Variables
+        path: variables
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Host State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:present
+        - urn:alm:descriptor:com.tectonic.ui:select:absent
+        - urn:alm:descriptor:com.tectonic.ui:select:exists
+      - displayName: Authentication Secret
+        path: connection_secret
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1alpha1
+    - description: Define a new Host Group in awx
+      displayName: AWX Host Group
+      kind: AnsibleGroup
+      name: ansiblegroups.tower.ansible.com
+      specDescriptors:
+      - displayName: Host Group Name
+        path: name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Host Group Inventory
+        path: inventory
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Host Group Description
+        path: description
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Hosts
+        path: hosts
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Child Groups
+        path: children
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Group State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:present
+        - urn:alm:descriptor:com.tectonic.ui:select:absent
+        - urn:alm:descriptor:com.tectonic.ui:select:exists
+      - displayName: Authentication Secret
+        path: connection_secret
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1alpha1
     - description: Define a new Inventory in awx
       displayName: AWX Inventory
       kind: AnsibleInventory
@@ -491,6 +565,10 @@ spec:
         path: variables
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Inventory Host Groups
+        path: groups
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:yaml
       - displayName: Authentication Secret
         path: connection_secret
         x-descriptors:

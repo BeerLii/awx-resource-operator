@@ -181,6 +181,95 @@ spec:
 ```
 
 
+### AnsibleInventory
+
+Create an inventory on AWX by creating an AnsibleInventory resource.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleInventory
+metadata:
+  name: beer-inventory
+spec:
+  connection_secret: awx-access
+  name: beer-inventory
+  organization: Default
+  state: present
+```
+
+### AnsibleHost
+
+Create a host inside an existing inventory on AWX by creating an AnsibleHost resource. The referenced inventory must already exist in AWX.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleHost
+metadata:
+  name: beer-host-1
+spec:
+  connection_secret: awx-access
+  name: beer-host-1
+  description: example host
+  inventory: beer-inventory
+  enabled: true
+  state: present
+  variables:
+    ansible_host: 10.0.0.10
+    ansible_user: root
+```
+
+Setting `state: absent` deletes the host from AWX again. Host variables are passed through to AWX as-is, so any Ansible connection variables (`ansible_host`, `ansible_user`, `ansible_port`, ...) can be set here.
+
+
+Inventory 也可以通过 `spec.groups` 一并创建或更新 Host Group。Inventory 本身必须先成功创建，引用的 Host 和子 Group 必须已经存在于该 Inventory 中。
+
+```yaml
+spec:
+  name: beer-inventory
+  organization: Default
+  connection_secret: awx-access
+  groups:
+    - name: beer-test
+      hosts:
+        - beer-host-1
+      children: []
+      preserve_existing_hosts: true
+      preserve_existing_children: true
+```
+
+
+### AnsibleGroup
+
+Create a host group in an existing AWX inventory with an `AnsibleGroup` resource. The
+inventory and any hosts or child groups referenced by `hosts` and `children` must
+already exist in AWX.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleGroup
+metadata:
+  name: beer-test
+spec:
+  connection_secret: awx-access
+  name: beer-test
+  inventory: beer-inventory
+  description: beer test host group
+  state: present
+  hosts:
+    - beer-host-1
+  children: []
+  preserve_existing_hosts: true
+  preserve_existing_children: true
+```
+
+Set `state: absent` to remove the group. By default, the declared `hosts` and
+`children` are synchronized; set the corresponding `preserve_existing_*` option
+to `true` to retain existing AWX relationships not listed in the resource.
+
+
 ## Contributing
 
 Please visit our [contributing guidelines](./CONTRIBUTING.md) and [development guide](./docs/development.md) for information on how to set up your environment, build and deploy the operator, and submit changes.

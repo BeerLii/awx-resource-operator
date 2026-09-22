@@ -1,0 +1,71 @@
+---
+- name: Set the desired state
+  set_fact:
+    _state: "{{ state | default('present') }}"
+
+- name: Read Secret Configuration from connection_secret
+  kubernetes.core.k8s_info:
+    kind: Secret
+    api_version: v1
+    name: "{{ connection_secret }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: tower_connection_secret
+  when: connection_secret is defined
+
+- name: Set fact based on secret results
+  set_fact:
+    tower_config_secret: "{{ tower_connection_secret }}"
+
+- name: Validate Secret Exists
+  assert:
+    that:
+      - tower_config_secret["resources"] is defined and (tower_config_secret["resources"]|length>0)
+    fail_msg: "Tower Secret must exist"
+
+- name: Manage the host group in the inventory
+  awx.awx.group:
+    name: "{{ name }}"
+    description: "{{ description | default(omit) }}"
+    inventory: "{{ inventory }}"
+    variables: "{{ variables | default(omit) }}"
+    hosts: "{{ hosts | default(omit) }}"
+    children: "{{ children | default(omit) }}"
+    preserve_existing_hosts: "{{ preserve_existing_hosts | default(omit) }}"
+    preserve_existing_children: "{{ preserve_existing_children | default(omit) }}"
+    state: "{{ _state }}"
+  environment:
+    TOWER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
+    TOWER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
+    TOWER_VERIFY_SSL: "False"
+    CONTROLLER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
+    CONTROLLER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
+    CONTROLLER_VERIFY_SSL: "False"
+  register: group_result
+  ignore_errors: true
+
+- name: Update the k8s status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleGroup
+    name: '{{ ansible_operator_meta.name }}'
+    namespace: '{{ ansible_operator_meta.namespace }}'
+    status:
+      isFinished: true
+      groupResult:
+        changed: "{{ group_result.changed | default(false) }}"
+      message: "{{ 'Host group removed' if _state == 'absent' else 'Host group created' }}"
+  when:
+    - not group_result.failed | default(false)
+
+- name: Update the k8s status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleGroup
+    name: '{{ ansible_operator_meta.name }}'
+    namespace: '{{ ansible_operator_meta.namespace }}'
+    status:
+      isFinished: true
+      error: true
+      message: "There was an error when managing the host group"
+  when:
+    - group_result.failed | default(false)

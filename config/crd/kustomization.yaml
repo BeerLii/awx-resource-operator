@@ -11,4 +11,6 @@ resources:
 - bases/tower.ansible.com_ansibleinstancegroups.yaml
 - bases/tower.ansible.com_workflowtemplates.yaml
 - bases/tower.ansible.com_ansibleinventories.yaml
+- bases/tower.ansible.com_ansiblehosts.yaml
+- bases/tower.ansible.com_ansiblegroups.yaml
 #+kubebuilder:scaffold:crdkustomizeresource

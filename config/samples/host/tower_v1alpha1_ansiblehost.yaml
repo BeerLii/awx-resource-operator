@@ -1,0 +1,14 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleHost
+metadata:
+  name: beer-host-1
+spec:
+  connection_secret: awxaccess
+  name: beer-host-1
+  description: example host
+  inventory: beer-inventory
+  enabled: true
+  state: present
+  variables:
+    ansible_host: 10.0.0.10
+    ansible_user: root

@@ -26,6 +26,10 @@
   group: tower.ansible.com
   kind: AnsibleCredential
   role: credential
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
 - version: v1alpha1
   group: tower.ansible.com
   kind: AnsibleSchedule
@@ -38,6 +42,14 @@
   group: tower.ansible.com
   kind: WorkflowTemplate
   role: workflowtemplate
+- version: v1alpha1
+  group: tower.ansible.com
+  kind: AnsibleHost
+  role: host
+- version: v1alpha1
+  group: tower.ansible.com
+  kind: AnsibleGroup
+  role: group
 - version: v1alpha1
   group: tower.ansible.com
   kind: AnsibleInventory

@@ -90,6 +90,9 @@ rules:
       - ansibleprojects
       - ansibleprojects/status
       - ansibleprojects/finalizers
+      - ansiblecredentials
+      - ansiblecredentials/status
+      - ansiblecredentials/finalizers
     verbs:
       - create
       - delete

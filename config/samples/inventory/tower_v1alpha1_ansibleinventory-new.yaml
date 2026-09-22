@@ -20,3 +20,11 @@ spec:
     object:
       string: "string_value"
       number: 2
+  groups:
+    - name: beer-test
+      description: beer test host group
+      hosts:
+        - beer-host-1
+      children: []
+      preserve_existing_hosts: true
+      preserve_existing_children: true
