@@ -1,0 +1,47 @@
+---
+- name: Read host runner arguments
+  set_fact:
+    _name: "{{ lookup('env','NAME') }}"
+    _inventory: "{{ lookup('env','INVENTORY') }}"
+    _description: "{{ lookup('env','DESCRIPTION') | default('', true) }}"
+    _enabled: "{{ lookup('env','ENABLED') | default('true', true) | bool }}"
+    _state: "{{ lookup('env','STATE') | default('present', true) }}"
+    _variables: "{{ lookup('env','VARIABLES') | default('{}', true) | from_json }}"
+
+- name: Manage AWX host
+  block:
+    - name: Create or update AWX host
+      awx.awx.host:
+        name: "{{ _name }}"
+        inventory: "{{ _inventory }}"
+        description: "{{ _description if _description | length > 0 else omit }}"
+        enabled: "{{ _enabled }}"
+        variables: "{{ _variables if _variables | length > 0 else omit }}"
+        state: "{{ _state }}"
+      register: resource_result
+  rescue:
+    - name: Update host status after runner failure
+      operator_sdk.util.k8s_status:
+        api_version: tower.ansible.com/v1alpha1
+        kind: AnsibleHost
+        name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+        namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+        status:
+          isFinished: true
+          error: true
+          message: "AWX host operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - name: Stop host runner after failure
+      meta: end_play
+
+- name: Update host status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleHost
+    name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: true
+      error: false
+      message: "AWX host managed by the job runner"
+      hostResult:
+        changed: "{{ resource_result.changed }}"

@@ -1,0 +1,70 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ ansible_operator_meta.name }}"
+  namespace: "{{ ansible_operator_meta.namespace }}"
+spec:
+  ttlSecondsAfterFinished: {{ job_ttl }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: '{{ (ansible_operator_meta.labels | default({})).get("app.kubernetes.io/managed-by", "awx-resource-operator") }}'
+        app.kubernetes.io/component: 'awx-resource-runner'
+    spec:
+      serviceAccountName: resource-operator-controller-manager-job
+      containers:
+        - name: "{{ ansible_operator_meta.name }}"
+          image: "{{ _runner_image }}"
+          imagePullPolicy: "{{ _runner_pull_policy }}"
+          env:
+            - name: TOWER_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ connection_secret }}"
+                  key: token
+            - name: CONTROLLER_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ connection_secret }}"
+                  key: token
+            - name: TOWER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ connection_secret }}"
+                  key: host
+            - name: CONTROLLER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ connection_secret }}"
+                  key: host
+            - name: RUNNER_RESOURCE_KIND
+              value: "AnsibleGroup"
+            - name: NAME
+              value: "{{ name }}"
+            - name: STATE
+              value: "{{ state | default('present') }}"
+            - name: INVENTORY
+              value: "{{ inventory }}"
+            - name: DESCRIPTION
+              value: "{{ description | default('') }}"
+            - name: VARIABLES
+              value: '{{ variables | default({}) | to_json | quote }}'
+            - name: HOSTS
+              value: '{{ hosts | default([]) | to_json | quote }}'
+            - name: CHILDREN
+              value: '{{ children | default([]) | to_json | quote }}'
+            - name: PRESERVE_EXISTING_HOSTS
+              value: "{{ preserve_existing_hosts | default(false) }}"
+            - name: PRESERVE_EXISTING_CHILDREN
+              value: "{{ preserve_existing_children | default(false) }}"
+            - name: TOWER_VERIFY_SSL
+              value: "False"
+            - name: CONTROLLER_VERIFY_SSL
+              value: "False"
+            - name: RUNNER_RESOURCE_NAME
+              value: "{{ ansible_operator_meta.name }}"
+            - name: RUNNER_RESOURCE_NAMESPACE
+              value: "{{ ansible_operator_meta.namespace }}"
+      restartPolicy: Never
+  backoffLimit: {{ backoff_limit }}

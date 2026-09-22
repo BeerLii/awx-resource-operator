@@ -1,90 +1,58 @@
 ---
-- name: Read Secret Configuration from connection_secret
+- name: Apply NetworkPolicies
+  include_role:
+    name: networkpolicy
+
+- name: Read AnsibleInventory info
   kubernetes.core.k8s_info:
-    kind: Secret
-    api_version: v1
-    name: "{{ connection_secret }}"
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleInventory
+    name: "{{ ansible_operator_meta.name }}"
     namespace: "{{ ansible_operator_meta.namespace }}"
-  register: tower_connection_secret
-  when: connection_secret is defined
+  register: resource_info
 
-- name: Set fact based on secret results
+- name: End play early when runner job already finished
+  meta: end_play
+  when:
+    - resource_info.resources[0].status.isFinished is defined
+    - resource_info.resources[0].status.isFinished
+
+- name: Check existing runner job
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: k8s_job
+
+- name: End play early when runner job is already active
+  meta: end_play
+  when:
+    - k8s_job.resources is defined
+    - k8s_job.resources | length > 0
+    - state | default('present') != 'absent'
+
+- name: Set runner image
   set_fact:
-    tower_config_secret: "{{ tower_connection_secret }}"
+    _runner_image: "{{ (runner_image + ':' + runner_version) if runner_image is defined and runner_version is defined else lookup('env', 'RELATED_IMAGE_ANSIBLE_JOB_RUNNER_IMAGE') }}"
+    _runner_pull_policy: "{{ runner_pull_policy | default('IfNotPresent') }}"
 
-- name: Validate Secret Exists
-  assert:
-    that:
-      - tower_config_secret["resources"] is defined and (tower_config_secret["resources"]|length>0)
-    fail_msg: "Tower Secret must exist"
-
-- name: Create inventory based on a copy of the source inventory
-  awx.awx.inventory:
-    name: "{{ name }}"
-    description: "{{ description }}"
-    organization: "{{ organization }}"
-    copy_from: "{{ copy_from | default(omit) }}"
-    state: "{{ state | default('present') }}"
-    instance_groups: "{{ instance_groups | default(omit) }}"
-    variables: "{{ variables | default(omit) }}"
-  environment:
-    TOWER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
-    TOWER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
-    TOWER_VERIFY_SSL: "False"
-    CONTROLLER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
-    CONTROLLER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
-    CONTROLLER_VERIFY_SSL: "False"
-  register: inventory
-  ignore_errors: true
-
-- name: Create or update inventory host groups
-  awx.awx.group:
-    name: "{{ item.name }}"
-    description: "{{ item.description | default(omit) }}"
-    inventory: "{{ name }}"
-    variables: "{{ item.variables | default(omit) }}"
-    hosts: "{{ item.hosts | default(omit) }}"
-    children: "{{ item.children | default(omit) }}"
-    preserve_existing_hosts: "{{ item.preserve_existing_hosts | default(omit) }}"
-    preserve_existing_children: "{{ item.preserve_existing_children | default(omit) }}"
+- name: Create runner service account and job
+  kubernetes.core.k8s:
     state: present
-  loop: "{{ groups | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
-  environment:
-    TOWER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
-    TOWER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
-    TOWER_VERIFY_SSL: "False"
-    CONTROLLER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
-    CONTROLLER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
-    CONTROLLER_VERIFY_SSL: "False"
-  register: group_results
-  ignore_errors: true
-  when:
-    - not inventory.failed | default(false)
-    - state | default('present') == 'present'
+    definition: "{{ lookup('template', item) }}"
+  loop:
+    - service_account.yml.j2
+    - job_definition.yml.j2
 
-- name: Update the k8s status
+- name: Update AnsibleInventory status with runner job info
   operator_sdk.util.k8s_status:
     api_version: tower.ansible.com/v1alpha1
-    kind: ansibleinventory
-    name: '{{ ansible_operator_meta.name }}'
-    namespace: '{{ ansible_operator_meta.namespace }}'
+    kind: AnsibleInventory
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
     status:
-      isFinished: true
-      message: "Inventory Created"
-  when:
-    - inventory.changed
-
-- name: Update the k8s status
-  operator_sdk.util.k8s_status:
-    api_version: tower.ansible.com/v1alpha1
-    kind: ansibleinventory
-    name: '{{ ansible_operator_meta.name }}'
-    namespace: '{{ ansible_operator_meta.namespace }}'
-    status:
-      isFinished: true
-      error: true
-      message: "There was an error when creating the inventory"
-  when:
-    - inventory.failed
+      k8sJob:
+        created: true
+        namespacedName: "{{ ansible_operator_meta.namespace + '/' + ansible_operator_meta.name }}"
+        message: "AWX Inventory operation submitted to the job runner"

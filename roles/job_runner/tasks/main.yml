@@ -23,6 +23,22 @@
     - lookup('env','ANSIBLEINSTANCEGROUP_NAME') is defined
     - lookup('env','ANSIBLEINSTANCEGROUP_NAME') != ''
 
+- name: Manage Inventory
+  include_tasks: create_inventory.yml
+  when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleInventory'
+
+- name: Manage Host
+  include_tasks: create_host.yml
+  when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleHost'
+
+- name: Manage Host Group
+  include_tasks: create_group.yml
+  when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleGroup'
+
+- name: End runner play after resource operation
+  meta: end_play
+  when: lookup('env','RUNNER_RESOURCE_KIND') in ['AnsibleInventory', 'AnsibleHost', 'AnsibleGroup']
+
 - name: Read in Environment Variables
   set_fact:
     ansible_job_name: "{{ lookup('env', 'ANSIBLEJOB_NAME') }}"

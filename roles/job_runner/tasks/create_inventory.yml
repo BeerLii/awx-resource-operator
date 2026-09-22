@@ -1,0 +1,68 @@
+---
+- name: Read inventory runner arguments
+  set_fact:
+    _name: "{{ lookup('env','NAME') }}"
+    _organization: "{{ lookup('env','ORGANIZATION') | default('', true) }}"
+    _description: "{{ lookup('env','DESCRIPTION') | default('', true) }}"
+    _copy_from: "{{ lookup('env','COPY_FROM') | default('', true) }}"
+    _state: "{{ lookup('env','STATE') | default('present', true) }}"
+    _instance_groups: "{{ lookup('env','INSTANCE_GROUPS') | default('[]', true) | from_json }}"
+    _variables: "{{ lookup('env','VARIABLES') | default('{}', true) | from_json }}"
+    _groups: "{{ lookup('env','GROUPS') | default('[]', true) | from_json }}"
+
+- name: Manage AWX inventory and host groups
+  block:
+    - name: Create or update AWX inventory
+      awx.awx.inventory:
+        name: "{{ _name }}"
+        organization: "{{ _organization }}"
+        description: "{{ _description if _description | length > 0 else omit }}"
+        copy_from: "{{ _copy_from if _copy_from | length > 0 else omit }}"
+        instance_groups: "{{ _instance_groups if _instance_groups | length > 0 else omit }}"
+        variables: "{{ _variables if _variables | length > 0 else omit }}"
+        state: "{{ _state }}"
+      register: resource_result
+
+    - name: Manage inventory host groups
+      awx.awx.group:
+        name: "{{ item.name }}"
+        inventory: "{{ _name }}"
+        description: "{{ item.description | default(omit) }}"
+        variables: "{{ item.variables | default(omit) }}"
+        hosts: "{{ item.hosts | default(omit) }}"
+        children: "{{ item.children | default(omit) }}"
+        preserve_existing_hosts: "{{ item.preserve_existing_hosts | default(omit) }}"
+        preserve_existing_children: "{{ item.preserve_existing_children | default(omit) }}"
+        state: present
+      loop: "{{ _groups }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: _state == 'present'
+      register: group_results
+  rescue:
+    - name: Update inventory status after runner failure
+      operator_sdk.util.k8s_status:
+        api_version: tower.ansible.com/v1alpha1
+        kind: AnsibleInventory
+        name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+        namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+        status:
+          isFinished: true
+          error: true
+          message: "AWX inventory operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - name: Stop inventory runner after failure
+      meta: end_play
+
+- name: Update inventory status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleInventory
+    name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: true
+      error: false
+      message: "AWX inventory managed by the job runner"
+      inventoryResult:
+        changed: "{{ resource_result.changed }}"
+        groups: "{{ group_results.results | default([]) | length }}"

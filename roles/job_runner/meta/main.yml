@@ -59,3 +59,4 @@ dependencies: []
 
 collections:
   - operator_sdk.util
+  - awx.awx

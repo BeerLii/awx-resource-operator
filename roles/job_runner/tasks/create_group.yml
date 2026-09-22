@@ -1,0 +1,53 @@
+---
+- name: Read host group runner arguments
+  set_fact:
+    _name: "{{ lookup('env','NAME') }}"
+    _inventory: "{{ lookup('env','INVENTORY') }}"
+    _description: "{{ lookup('env','DESCRIPTION') | default('', true) }}"
+    _state: "{{ lookup('env','STATE') | default('present', true) }}"
+    _variables: "{{ lookup('env','VARIABLES') | default('{}', true) | from_json }}"
+    _hosts: "{{ lookup('env','HOSTS') | default('[]', true) | from_json }}"
+    _children: "{{ lookup('env','CHILDREN') | default('[]', true) | from_json }}"
+    _preserve_existing_hosts: "{{ lookup('env','PRESERVE_EXISTING_HOSTS') | default('false', true) | bool }}"
+    _preserve_existing_children: "{{ lookup('env','PRESERVE_EXISTING_CHILDREN') | default('false', true) | bool }}"
+
+- name: Manage AWX host group
+  block:
+    - name: Create or update AWX host group
+      awx.awx.group:
+        name: "{{ _name }}"
+        inventory: "{{ _inventory }}"
+        description: "{{ _description if _description | length > 0 else omit }}"
+        variables: "{{ _variables if _variables | length > 0 else omit }}"
+        hosts: "{{ _hosts if _hosts | length > 0 else omit }}"
+        children: "{{ _children if _children | length > 0 else omit }}"
+        preserve_existing_hosts: "{{ _preserve_existing_hosts }}"
+        preserve_existing_children: "{{ _preserve_existing_children }}"
+        state: "{{ _state }}"
+      register: resource_result
+  rescue:
+    - name: Update group status after runner failure
+      operator_sdk.util.k8s_status:
+        api_version: tower.ansible.com/v1alpha1
+        kind: AnsibleGroup
+        name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+        namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+        status:
+          isFinished: true
+          error: true
+          message: "AWX host group operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - name: Stop group runner after failure
+      meta: end_play
+
+- name: Update group status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleGroup
+    name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: true
+      error: false
+      message: "AWX host group managed by the job runner"
+      groupResult:
+        changed: "{{ resource_result.changed }}"
