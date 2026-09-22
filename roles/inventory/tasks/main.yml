@@ -11,6 +11,10 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: resource_info
 
+- name: Capture inventory host groups from the resource spec
+  set_fact:
+    _inventory_groups: "{{ resource_info.resources[0].spec.groups | default([]) }}"
+
 - name: End play early when runner job already finished
   meta: end_play
   when:

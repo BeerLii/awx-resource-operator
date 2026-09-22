@@ -55,7 +55,7 @@ spec:
             - name: VARIABLES
               value: '{{ variables | default({}) | to_json | replace("'", "''") }}'
             - name: GROUPS
-              value: '{{ groups | default([]) | to_json | replace("'", "''") }}'
+              value: '{{ _inventory_groups | default([]) | to_json | replace("'", "''") }}'
             - name: TOWER_VERIFY_SSL
               value: "False"
             - name: CONTROLLER_VERIFY_SSL

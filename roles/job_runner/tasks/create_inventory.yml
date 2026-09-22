@@ -8,7 +8,11 @@
     _state: "{{ lookup('env','STATE') | default('present', true) }}"
     _instance_groups: "{{ lookup('env','INSTANCE_GROUPS') | default('[]', true) | from_json }}"
     _variables: "{{ lookup('env','VARIABLES') | default('{}', true) | from_json }}"
-    _groups: "{{ lookup('env','GROUPS') | default('[]', true) | from_json }}"
+    _groups_raw: "{{ lookup('env','GROUPS') | default('[]', true) | from_json }}"
+
+- name: Normalize inventory host groups to a list
+  set_fact:
+    _groups: "{{ [_groups_raw] if _groups_raw is mapping else _groups_raw }}"
 
 - name: Manage AWX inventory and host groups
   block:
