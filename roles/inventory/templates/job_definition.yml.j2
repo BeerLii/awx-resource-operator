@@ -51,11 +51,11 @@ spec:
             - name: DESCRIPTION
               value: "{{ description | default('') }}"
             - name: INSTANCE_GROUPS
-              value: '{{ instance_groups | default([]) | to_json | quote }}'
+              value: '{{ instance_groups | default([]) | to_json | replace("'", "''") }}'
             - name: VARIABLES
-              value: '{{ variables | default({}) | to_json | quote }}'
+              value: '{{ variables | default({}) | to_json | replace("'", "''") }}'
             - name: GROUPS
-              value: '{{ groups | default([]) | to_json | quote }}'
+              value: '{{ groups | default([]) | to_json | replace("'", "''") }}'
             - name: TOWER_VERIFY_SSL
               value: "False"
             - name: CONTROLLER_VERIFY_SSL

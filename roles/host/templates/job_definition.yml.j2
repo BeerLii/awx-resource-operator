@@ -51,7 +51,7 @@ spec:
             - name: ENABLED
               value: "{{ enabled | default(true) }}"
             - name: VARIABLES
-              value: '{{ variables | default({}) | to_json | quote }}'
+              value: '{{ variables | default({}) | to_json | replace("'", "''") }}'
             - name: TOWER_VERIFY_SSL
               value: "False"
             - name: CONTROLLER_VERIFY_SSL

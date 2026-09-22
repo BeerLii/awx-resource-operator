@@ -49,11 +49,11 @@ spec:
             - name: DESCRIPTION
               value: "{{ description | default('') }}"
             - name: VARIABLES
-              value: '{{ variables | default({}) | to_json | quote }}'
+              value: '{{ variables | default({}) | to_json | replace("'", "''") }}'
             - name: HOSTS
-              value: '{{ hosts | default([]) | to_json | quote }}'
+              value: '{{ hosts | default([]) | to_json | replace("'", "''") }}'
             - name: CHILDREN
-              value: '{{ children | default([]) | to_json | quote }}'
+              value: '{{ children | default([]) | to_json | replace("'", "''") }}'
             - name: PRESERVE_EXISTING_HOSTS
               value: "{{ preserve_existing_hosts | default(false) }}"
             - name: PRESERVE_EXISTING_CHILDREN
