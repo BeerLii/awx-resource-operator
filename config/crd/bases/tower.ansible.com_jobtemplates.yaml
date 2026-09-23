@@ -64,6 +64,17 @@ spec:
                 type: boolean
               ask_inventory_on_launch:
                 type: boolean
+              ask_limit_on_launch:
+                type: boolean
+                description: Allow the limit host pattern to be supplied when launching the Job Template
+              extra_vars_ref:
+                type: object
+                description: Reference to a JobTemplateExtraVars resource in the same namespace
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
               tower_auth_secret:
                 type: string
                 description: |

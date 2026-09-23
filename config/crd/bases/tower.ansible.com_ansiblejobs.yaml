@@ -36,6 +36,9 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
               inventory:
                 type: string
+              limit:
+                type: string
+                description: Host pattern used to limit the job execution
               job_template_name:
                 type: string
               workflow_template_name:

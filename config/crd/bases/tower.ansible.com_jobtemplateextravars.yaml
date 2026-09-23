@@ -1,0 +1,40 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: jobtemplateextravars.tower.ansible.com
+spec:
+  group: tower.ansible.com
+  names:
+    kind: JobTemplateExtraVars
+    listKind: JobTemplateExtraVarsList
+    plural: jobtemplateextravars
+    singular: jobtemplateextravars
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: Non-sensitive default extra variables for one or more JobTemplates.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                variables:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      subresources:
+        status: {}

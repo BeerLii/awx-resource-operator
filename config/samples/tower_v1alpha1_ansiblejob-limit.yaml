@@ -1,0 +1,8 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleJob
+metadata:
+  generateName: deploy-uat1-
+spec:
+  connection_secret: awxaccess
+  job_template_name: Deploy Application
+  limit: uat1

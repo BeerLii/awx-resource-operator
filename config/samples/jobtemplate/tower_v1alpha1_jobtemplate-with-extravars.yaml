@@ -1,0 +1,13 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: JobTemplate
+metadata:
+  name: deploy-jobtemplate
+spec:
+  connection_secret: awxaccess
+  name: Deploy Application
+  project: Demo Project
+  playbook: deploy.yml
+  inventory: all-environments
+  extra_vars_ref:
+    name: deploy-common-vars
+  ask_limit_on_launch: true

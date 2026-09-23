@@ -14,4 +14,5 @@ resources:
 - bases/tower.ansible.com_ansibleinventories.yaml
 - bases/tower.ansible.com_ansiblehosts.yaml
 - bases/tower.ansible.com_ansiblegroups.yaml
+- bases/tower.ansible.com_jobtemplateextravars.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
