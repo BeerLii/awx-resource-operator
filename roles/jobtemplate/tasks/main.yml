@@ -1,108 +1,101 @@
 ---
-- name: Read Secret Configuration from connection_secret
+- name: Apply NetworkPolicies
+  include_role:
+    name: networkpolicy
+
+- name: Read JobTemplate info
   kubernetes.core.k8s_info:
-    kind: Secret
-    api_version: v1
-    name: "{{ connection_secret }}"
+    api_version: tower.ansible.com/v1alpha1
+    kind: JobTemplate
+    name: "{{ ansible_operator_meta.name }}"
     namespace: "{{ ansible_operator_meta.namespace }}"
-  register: tower_connection_secret
-  when: connection_secret is defined
+  register: resource_info
 
-- name: DEPRECATED Read Secret Configuration from tower_auth_secret
+- name: Set resource generation and connection secret
+  set_fact:
+    _resource_generation: "{{ resource_info.resources[0].metadata.generation | default(1) }}"
+    _connection_secret: "{{ resource_info.resources[0].spec.connection_secret | default(resource_info.resources[0].spec.tower_auth_secret) }}"
+
+- name: Check existing runner job
   kubernetes.core.k8s_info:
-    kind: Secret
-    api_version: v1
-    name: "{{ tower_auth_secret }}"
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
     namespace: "{{ ansible_operator_meta.namespace }}"
-  register: tower_connection_deprecated_secret
-  when: tower_auth_secret is defined
+  register: k8s_job
 
-- name: Set fact based on secret results
+- name: End play when the current generation has already finished
+  meta: end_play
+  when:
+    - state | default('present') != 'absent'
+    - resource_info.resources[0].status.isFinished | default(false) | bool
+    - resource_info.resources[0].status.observedGeneration | default(-1) | int == resource_info.resources[0].metadata.generation | int
+
+- name: Remove stale runner job before processing a changed or deleted resource
+  kubernetes.core.k8s:
+    state: absent
+    api_version: batch/v1
+    kind: Job
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  when:
+    - k8s_job.resources | length > 0
+    - (state | default('present') == 'absent') or
+      (resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int and
+       (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+        k8s_job.resources[0].status.failed | default(0) | int > 0))
+
+- name: End play when a runner job is already active
+  meta: end_play
+  when:
+    - k8s_job.resources | length > 0
+    - state | default('present') != 'absent'
+    - not (k8s_job.resources[0].status.succeeded | default(0) | int > 0)
+    - not (k8s_job.resources[0].status.failed | default(0) | int > 0)
+
+- name: Set runner image
   set_fact:
-     tower_config_secret: "{{ tower_connection_secret }}"
-  when: tower_connection_secret is not skipped and tower_connection_deprecated_secret is skipped
+    _runner_image: "{{ (runner_image + ':' + runner_version) if runner_image is defined and runner_version is defined else lookup('env', 'RELATED_IMAGE_ANSIBLE_JOB_RUNNER_IMAGE') }}"
+    _runner_pull_policy: "{{ runner_pull_policy | default('IfNotPresent') }}"
 
-- name: Set fact based on secret results
-  set_fact:
-    tower_config_secret: "{{ tower_connection_deprecated_secret }}"
-  when: tower_connection_deprecated_secret is not skipped and tower_connection_secret is skipped
+- name: Create runner service account and job
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', item) }}"
+  loop:
+    - service_account.yml.j2
+    - job_definition.yml.j2
 
-- name: Validate Secret Exists
-  assert:
-    that:
-      - tower_config_secret["resources"] is defined and (tower_config_secret["resources"]|length>0)
-    fail_msg: "Tower Secret must exist"
+- name: Wait for AWX deletion runner to finish
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: deletion_job
+  until: >-
+    deletion_job.resources | length > 0 and
+    (deletion_job.resources[0].status.succeeded | default(0) | int == 1 or
+     deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1)
+  retries: 60
+  delay: 2
+  when: state | default('present') == 'absent'
 
-- name: Create Job Template
-  awx.awx.job_template:
-    name: "{{ name | default(job_template_name) }}"
-    job_type: "{{ job_type | default(job_template_type | default('run')) }}"
-    inventory: "{{ inventory | default(job_template_inventory) }}"
-    project: "{{ project | default(job_template_project) }}"
-    playbook: "{{ playbook | default(job_template_playbook) }}"
-    credentials: "{{ credentials | default(job_template_credentials | default(omit)) }}"
-    vault_credential: "{{ vault_credentials | default(job_template_vault_credentials | default(omit)) }}"
-    forks: "{{ forks | default(job_template_forks | default(omit)) }}"
-    limit: "{{ limit | default(job_template_limit | default(omit)) }}"
-    verbosity: "{{ verbosity | default(job_template_verbosity | default(omit)) }}"
-    extra_vars: "{{ extra_vars | default(job_template_extra_vars | default(omit)) }}"
-    become_enabled: "{{ become_enabled | default(job_template_become_enabled | default(omit)) }}"
-    allow_simultaneous: "{{ allow_simultaneous | default(job_template_allow_simultaneous | default(omit)) }}"
-    state: "{{ tower_resource_state if tower_resource_state is defined else 'present' }}"
-    ask_credential_on_launch: "{{ ask_credential_on_launch | default(job_template_ask_credential | default(omit)) }}"
-    ask_inventory_on_launch: "{{ ask_inventory_on_launch | default(job_template_ask_inventory | default(omit)) }}"
-    ask_job_type_on_launch: "{{ ask_job_type_on_launch | default(job_template_ask_job_type | default(omit)) }}"
-    ask_limit_on_launch: "{{ ask_limit_on_launch | default(job_template_ask_limit | default(omit)) }}"
-    ask_scm_branch_on_launch: "{{ ask_scm_branch_on_launch | default(job_template_ask_scm | default(omit)) }}"
-    ask_skip_tags_on_launch: "{{ ask_skip_tags_on_launch | default(job_template_ask_skip_tags | default(omit)) }}"
-    ask_tags_on_launch: "{{ ask_tags_on_launch | default(job_template_ask_tags | default(omit)) }}"
-    ask_variables_on_launch: "{{ ask_variables_on_launch | default(job_tempate_ask_vars | default(omit)) }}"
-    ask_verbosity_on_launch: "{{ ask_verbosity_on_launch | default(job_template_ask_verbosity | default(omit)) }}"
-    custom_virtualenv: "{{ job_template_venv | default(omit) }}"
-    force_handlers: "{{ force_handlers | default(job_template_force_handlers | default('no')) }}"
-    host_config_key: "{{ host_config_key | default(job_template_host_config_key | default(omit)) }}"
-    instance_groups: "{{ instance_groups | default(job_template_instance_groups | default(omit)) }}"
-    job_slice_count: "{{ job_slice_count | default(job_template_job_slice_count | default('1')) }}"
-    job_tags: "{{ job_tags | default(job_template_job_tags | default(omit)) }}"
-    organization: "{{ organization | default(job_template_organization | default(omit)) }}"
-    scm_branch: "{{ scm_branch | default(job_template_scm_branch | default(omit)) }}"
-    skip_tags: "{{ skip_tags | default(job_template_skip_tags | default(omit)) }}"
-    start_at_task: "{{ start_at_task | default(job_template_start_at_task | default(omit)) }}"
-    use_fast_cache: "{{ use_fast_cache | default(job_template_use_fast_cache | default(omit)) }}"
-    webhook_credential: "{{ webhook_credential | default(job_template_webhook_credential | default(omit)) }}"
-    webhook_service: "{{ webhook_service | default(job_template_webhook_service | default(omit)) }}"
-  environment:
-    - TOWER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
-    - TOWER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
-    - TOWER_VERIFY_SSL: "False"
-    - CONTROLLER_OAUTH_TOKEN: "{{ tower_config_secret['resources'][0]['data']['token'] | b64decode }}"
-    - CONTROLLER_HOST: "{{ tower_config_secret['resources'][0]['data']['host'] | b64decode }}"
-    - CONTROLLER_VERIFY_SSL: "False"
-  register: job_template
-  ignore_errors: true
+- name: Fail finalization when AWX deletion runner failed
+  ansible.builtin.fail:
+    msg: "AWX JobTemplate deletion runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
+  when:
+    - state | default('present') == 'absent'
+    - deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1
 
-- name: Update the k8s status
+- name: Update JobTemplate status with runner job info
   operator_sdk.util.k8s_status:
     api_version: tower.ansible.com/v1alpha1
-    kind: jobtemplate
-    name: '{{ ansible_operator_meta.name }}'
-    namespace: '{{ ansible_operator_meta.namespace }}'
+    kind: JobTemplate
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
     status:
-      isFinished: true
-      message: "Job Template Created"
-  when:
-    - job_template.changed
-
-- name: Update the k8s status
-  operator_sdk.util.k8s_status:
-    api_version: tower.ansible.com/v1alpha1
-    kind: jobtemplate
-    name: '{{ ansible_operator_meta.name }}'
-    namespace: '{{ ansible_operator_meta.namespace }}'
-    status:
-      isFinished: true
-      error: true
-      message: "There was an error in the job template"
-  when:
-    - job_template.failed
-
+      k8sJob:
+        created: true
+        namespacedName: "{{ ansible_operator_meta.namespace + '/' + ansible_operator_meta.name }}"
+        message: "AWX JobTemplate operation submitted to the job runner"

@@ -23,6 +23,10 @@
     - lookup('env','ANSIBLEINSTANCEGROUP_NAME') is defined
     - lookup('env','ANSIBLEINSTANCEGROUP_NAME') != ''
 
+- name: Manage JobTemplate
+  include_tasks: create_jobtemplate.yml
+  when: lookup('env', 'RUNNER_RESOURCE_KIND') == 'JobTemplate'
+
 - name: Manage Credential Type
   include_tasks: create_credential_type.yml
   when: lookup('env', 'RUNNER_RESOURCE_KIND') == 'AnsibleCredentialType'
@@ -41,7 +45,7 @@
 
 - name: End runner play after resource operation
   meta: end_play
-  when: lookup('env','RUNNER_RESOURCE_KIND') in ['AnsibleInventory', 'AnsibleHost', 'AnsibleGroup']
+  when: lookup('env','RUNNER_RESOURCE_KIND') in ['JobTemplate', 'AnsibleInventory', 'AnsibleHost', 'AnsibleGroup', 'AnsibleCredentialType']
 
 - name: Read in Environment Variables
   set_fact:

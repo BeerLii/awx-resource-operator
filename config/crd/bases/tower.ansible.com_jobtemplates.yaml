@@ -57,6 +57,9 @@ spec:
                 type: string
               project:
                 type: string
+              execution_environment:
+                type: string
+                description: The AWX Execution Environment name or ID for this Job Template
               ask_variables_on_launch:
                 type: boolean
               ask_inventory_on_launch:

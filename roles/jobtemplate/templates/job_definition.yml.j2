@@ -1,0 +1,59 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ ansible_operator_meta.name }}"
+  namespace: "{{ ansible_operator_meta.namespace }}"
+spec:
+  ttlSecondsAfterFinished: {{ job_ttl }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: '{{ (ansible_operator_meta.labels | default({})).get("app.kubernetes.io/managed-by", "awx-resource-operator") }}'
+        app.kubernetes.io/component: 'awx-resource-runner'
+    spec:
+      serviceAccountName: resource-operator-controller-manager-job
+      containers:
+        - name: resource-runner
+          image: "{{ _runner_image }}"
+          imagePullPolicy: "{{ _runner_pull_policy }}"
+          env:
+            - name: TOWER_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ _connection_secret }}"
+                  key: token
+            - name: CONTROLLER_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ _connection_secret }}"
+                  key: token
+            - name: TOWER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ _connection_secret }}"
+                  key: host
+            - name: CONTROLLER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ _connection_secret }}"
+                  key: host
+            - name: RUNNER_RESOURCE_KIND
+              value: "JobTemplate"
+            - name: RUNNER_RESOURCE_STATE
+              value: "{{ state | default('present') }}"
+            - name: RUNNER_RESOURCE_SPEC
+              value: >-
+                {{ resource_info.resources[0].spec | to_json }}
+            - name: RUNNER_RESOURCE_GENERATION
+              value: "{{ _resource_generation | default(1) }}"
+            - name: RUNNER_RESOURCE_NAME
+              value: "{{ ansible_operator_meta.name }}"
+            - name: RUNNER_RESOURCE_NAMESPACE
+              value: "{{ ansible_operator_meta.namespace }}"
+            - name: TOWER_VERIFY_SSL
+              value: "False"
+            - name: CONTROLLER_VERIFY_SSL
+              value: "False"
+      restartPolicy: Never
+  backoffLimit: {{ backoff_limit }}

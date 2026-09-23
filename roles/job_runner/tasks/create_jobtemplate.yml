@@ -1,0 +1,75 @@
+---
+- name: Read JobTemplate runner arguments
+  set_fact:
+    _spec: "{{ lookup('env', 'RUNNER_RESOURCE_SPEC') | from_json }}"
+    _state: "{{ lookup('env', 'RUNNER_RESOURCE_STATE') | default('present', true) }}"
+
+- name: Manage AWX JobTemplate
+  block:
+    - name: Create or update AWX JobTemplate
+      awx.awx.job_template:
+        name: "{{ _spec.name | default(_spec.job_template_name) }}"
+        job_type: "{{ _spec.job_type | default(_spec.job_template_type | default('run')) }}"
+        inventory: "{{ _spec.inventory | default(_spec.job_template_inventory) }}"
+        project: "{{ _spec.project | default(_spec.job_template_project) }}"
+        playbook: "{{ _spec.playbook | default(_spec.job_template_playbook) }}"
+        credentials: "{{ _spec.credentials | default(_spec.job_template_credentials | default(omit)) }}"
+        vault_credential: "{{ _spec.vault_credentials | default(_spec.job_template_vault_credentials | default(omit)) }}"
+        forks: "{{ _spec.forks | default(_spec.job_template_forks | default(omit)) }}"
+        limit: "{{ _spec.limit | default(_spec.job_template_limit | default(omit)) }}"
+        verbosity: "{{ _spec.verbosity | default(_spec.job_template_verbosity | default(omit)) }}"
+        extra_vars: "{{ _spec.extra_vars | default(_spec.job_template_extra_vars | default(omit)) }}"
+        become_enabled: "{{ _spec.become_enabled | default(_spec.job_template_become_enabled | default(omit)) }}"
+        allow_simultaneous: "{{ _spec.allow_simultaneous | default(_spec.job_template_allow_simultaneous | default(omit)) }}"
+        ask_credential_on_launch: "{{ _spec.ask_credential_on_launch | default(_spec.job_template_ask_credential | default(omit)) }}"
+        ask_inventory_on_launch: "{{ _spec.ask_inventory_on_launch | default(_spec.job_template_ask_inventory | default(omit)) }}"
+        ask_job_type_on_launch: "{{ _spec.ask_job_type_on_launch | default(_spec.job_template_ask_job_type | default(omit)) }}"
+        ask_limit_on_launch: "{{ _spec.ask_limit_on_launch | default(_spec.job_template_ask_limit | default(omit)) }}"
+        ask_scm_branch_on_launch: "{{ _spec.ask_scm_branch_on_launch | default(_spec.job_template_ask_scm | default(omit)) }}"
+        ask_skip_tags_on_launch: "{{ _spec.ask_skip_tags_on_launch | default(_spec.job_template_ask_tags | default(omit)) }}"
+        ask_tags_on_launch: "{{ _spec.ask_tags_on_launch | default(_spec.job_template_ask_tags | default(omit)) }}"
+        ask_variables_on_launch: "{{ _spec.ask_variables_on_launch | default(_spec.job_template_ask_vars | default(omit)) }}"
+        ask_verbosity_on_launch: "{{ _spec.ask_verbosity_on_launch | default(_spec.job_template_ask_verbosity | default(omit)) }}"
+        custom_virtualenv: "{{ _spec.venv | default(omit) }}"
+        execution_environment: "{{ _spec.execution_environment | default(_spec.job_template_execution_environment | default(omit)) }}"
+        force_handlers: "{{ _spec.force_handlers | default(_spec.job_template_force_handlers | default(omit)) }}"
+        host_config_key: "{{ _spec.host_config_key | default(_spec.job_template_host_config_key | default(omit)) }}"
+        instance_groups: "{{ _spec.instance_groups | default(_spec.job_template_instance_groups | default(omit)) }}"
+        job_slice_count: "{{ _spec.job_slice_count | default(_spec.job_template_job_slice_count | default(1)) }}"
+        job_tags: "{{ _spec.job_tags | default(_spec.job_template_job_tags | default(omit)) }}"
+        organization: "{{ _spec.organization | default(_spec.job_template_organization | default(omit)) }}"
+        scm_branch: "{{ _spec.scm_branch | default(_spec.job_template_scm_branch | default(omit)) }}"
+        skip_tags: "{{ _spec.skip_tags | default(_spec.job_template_skip_tags | default(omit)) }}"
+        start_at_task: "{{ _spec.start_at_task | default(_spec.job_template_start_at_task | default(omit)) }}"
+        use_fast_cache: "{{ _spec.use_fast_cache | default(_spec.job_template_use_fast_cache | default(omit)) }}"
+        webhook_credential: "{{ _spec.webhook_credential | default(_spec.job_template_webhook_credential | default(omit)) }}"
+        webhook_service: "{{ _spec.webhook_service | default(_spec.job_template_webhook_service | default(omit)) }}"
+        state: "{{ _state }}"
+      register: resource_result
+  rescue:
+    - name: Update JobTemplate status after runner failure
+      operator_sdk.util.k8s_status:
+        api_version: tower.ansible.com/v1alpha1
+        kind: JobTemplate
+        name: "{{ lookup('env', 'RUNNER_RESOURCE_NAME') }}"
+        namespace: "{{ lookup('env', 'RUNNER_RESOURCE_NAMESPACE') }}"
+        status:
+          isFinished: true
+          error: true
+          observedGeneration: "{{ lookup('env', 'RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+          message: "AWX JobTemplate operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - meta: end_play
+
+- name: Update JobTemplate status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: JobTemplate
+    name: "{{ lookup('env', 'RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env', 'RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: true
+      error: false
+      observedGeneration: "{{ lookup('env', 'RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+      message: "AWX JobTemplate managed by the job runner"
+      jobTemplateResult:
+        changed: "{{ resource_result.changed }}"

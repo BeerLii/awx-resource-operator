@@ -8,3 +8,5 @@ spec:
   project: Demo Project
   playbook: hello_world.yml
   inventory: Demo Inventory
+  # AWX Execution Environment name or ID.
+  execution_environment: Default execution environment
