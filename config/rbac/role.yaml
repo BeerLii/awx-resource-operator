@@ -93,6 +93,9 @@ rules:
       - ansiblecredentials
       - ansiblecredentials/status
       - ansiblecredentials/finalizers
+      - ansiblecredentialtypes
+      - ansiblecredentialtypes/status
+      - ansiblecredentialtypes/finalizers
     verbs:
       - create
       - delete
@@ -101,6 +104,15 @@ rules:
       - patch
       - update
       - watch
+
+  - apiGroups:
+      - tower.ansible.com
+    resources:
+      - ansiblehosts/finalizers
+      - ansiblegroups/finalizers
+      - ansibleinventories/finalizers
+    verbs:
+      - update
 
 ##
 ## Rules needed for managing k8s runner job

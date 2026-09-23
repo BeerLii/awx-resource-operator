@@ -7,6 +7,7 @@ resources:
 - bases/tower.ansible.com_ansibleprojects.yaml
 - bases/tower.ansible.com_ansibleworkflows.yaml
 - bases/tower.ansible.com_ansiblecredentials.yaml
+- bases/tower.ansible.com_ansiblecredentialtypes.yaml
 - bases/tower.ansible.com_ansibleschedules.yaml
 - bases/tower.ansible.com_ansibleinstancegroups.yaml
 - bases/tower.ansible.com_workflowtemplates.yaml

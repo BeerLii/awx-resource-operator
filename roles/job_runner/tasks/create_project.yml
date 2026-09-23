@@ -1,38 +1,54 @@
-- name: Define a project, if error update AnsibleProject status then end play
-  block:
-    - name: Launch project without credentials
-      awx.awx.project:
-        name: "{{ lookup('env','NAME') }}"
-        description: "{{ lookup('env','DESCRIPTION') }}"
-        organization: "{{ lookup('env','ORGANIZATION') }}"
-        scm_update_on_launch: True
-        scm_type: "{{ lookup('env','SCM_TYPE') }}"
-        scm_url: "{{ lookup('env','REPO') | default(omit) }}"
-        state: "{{ lookup('env','STATE') | default('present') }}"
-        scm_credential:
-        scm_branch: "{{ lookup('env','BRANCH'| default(omit)) }}"
-      register: project
-      when:
-        - lookup('env','SCM_CREDENTIAL') is not defined or lookup('env','SCM_CREDENTIAL') == ''
+---
+- name: Read project runner arguments
+  ansible.builtin.set_fact:
+    _project_name: "{{ lookup('env', 'NAME') }}"
+    _project_organization: "{{ lookup('env', 'ORGANIZATION') }}"
+    _project_state: "{{ lookup('env', 'STATE') | default('present', true) }}"
+    _project_sync: "{{ lookup('env', 'SYNC') | default('true', true) | bool }}"
+    _scm_credential: "{{ lookup('env', 'SCM_CREDENTIAL') }}"
 
-    - name: Launch project with credentials
+- name: Define project, then optionally synchronize it
+  block:
+    - name: Create or update project without a credential
       awx.awx.project:
-        name: "{{ lookup('env','NAME') }}"
-        description: "{{ lookup('env','DESCRIPTION') }}"
-        organization: "{{ lookup('env','ORGANIZATION') }}"
-        scm_update_on_launch: True
-        scm_type: "{{ lookup('env','SCM_TYPE') }}"
-        scm_url: "{{ lookup('env','REPO') | default(omit) }}"
-        scm_credential: "{{ lookup('env','SCM_CREDENTIAL') }}"
-        state: "{{ lookup('env','STATE') | default('present') }}"
-        scm_branch: "{{ lookup('env','BRANCH'| default(omit)) }}"
+        name: "{{ _project_name }}"
+        description: "{{ lookup('env', 'DESCRIPTION') | default(omit, true) }}"
+        organization: "{{ _project_organization }}"
+        scm_update_on_launch: true
+        scm_type: "{{ lookup('env', 'SCM_TYPE') }}"
+        scm_url: "{{ lookup('env', 'REPO') | default(omit, true) }}"
+        scm_branch: "{{ lookup('env', 'BRANCH') | default(omit, true) }}"
+        state: "{{ _project_state }}"
       register: project
+      when: _scm_credential == ''
+
+    - name: Create or update project with a credential
+      awx.awx.project:
+        name: "{{ _project_name }}"
+        description: "{{ lookup('env', 'DESCRIPTION') | default(omit, true) }}"
+        organization: "{{ _project_organization }}"
+        scm_update_on_launch: true
+        scm_type: "{{ lookup('env', 'SCM_TYPE') }}"
+        scm_url: "{{ lookup('env', 'REPO') | default(omit, true) }}"
+        scm_branch: "{{ lookup('env', 'BRANCH') | default(omit, true) }}"
+        scm_credential: "{{ _scm_credential }}"
+        state: "{{ _project_state }}"
+      register: project
+      when: _scm_credential != ''
+
+    - name: Synchronize project repository
+      awx.awx.project_update:
+        name: "{{ _project_name }}"
+        organization: "{{ _project_organization }}"
+        wait: true
+        timeout: 600
+      register: project_sync
       when:
-        - lookup('env','SCM_CREDENTIAL') is defined
-        - lookup('env','SCM_CREDENTIAL') != ''
+        - _project_state != 'absent'
+        - _project_sync
 
   rescue:
-    - name: Update status if creation resulted in an error
+    - name: Update status if project operation failed
       operator_sdk.util.k8s_status:
         api_version: tower.ansible.com/v1alpha1
         kind: AnsibleProject
@@ -40,9 +56,9 @@
         namespace: "{{ lookup('env', 'ANSIBLEPROJECT_NAMESPACE') }}"
         status:
           isFinished: true
-          AnsibleProjectResult:
-            status: "error"
-    - name: End playbook run
+          error: true
+          message: "AWX project operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - name: Stop project runner after failure
       meta: end_play
 
 - name: Update AnsibleProject status
@@ -53,5 +69,11 @@
     namespace: "{{ lookup('env', 'ANSIBLEPROJECT_NAMESPACE') }}"
     status:
       isFinished: true
+      error: false
+      observedGeneration: "{{ lookup('env', 'RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+      message: "AWX project managed by the job runner"
       AnsibleProjectResult:
-        changed: "{{ project.changed }}"
+        changed: "{{ project.changed | default(false) }}"
+        syncRequested: "{{ _project_sync }}"
+        syncChanged: "{{ project_sync.changed | default(false) }}"
+        syncStatus: "{{ project_sync.status | default('not_requested') }}"

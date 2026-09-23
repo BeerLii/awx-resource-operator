@@ -3,10 +3,10 @@
   include_role:
     name: networkpolicy
 
-- name: Read AnsibleGroup info
+- name: Read AnsibleCredentialType info
   kubernetes.core.k8s_info:
     api_version: tower.ansible.com/v1alpha1
-    kind: AnsibleGroup
+    kind: AnsibleCredentialType
     name: "{{ ansible_operator_meta.name }}"
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: resource_info
@@ -19,14 +19,14 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: k8s_job
 
-- name: End play when the current generation has already finished
+- name: End play when current generation has finished
   meta: end_play
   when:
     - state | default('present') != 'absent'
     - resource_info.resources[0].status.isFinished | default(false) | bool
     - resource_info.resources[0].status.observedGeneration | default(-1) | int == resource_info.resources[0].metadata.generation | int
 
-- name: Remove stale runner job before processing a changed or deleted resource
+- name: Remove stale runner job
   kubernetes.core.k8s:
     state: absent
     api_version: batch/v1
@@ -37,10 +37,9 @@
     - k8s_job.resources | length > 0
     - (state | default('present') == 'absent') or
       (resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int and
-       (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
-        k8s_job.resources[0].status.failed | default(0) | int > 0))
+       (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or k8s_job.resources[0].status.failed | default(0) | int > 0))
 
-- name: End play when a runner job is already active
+- name: End play when runner job is active
   meta: end_play
   when:
     - k8s_job.resources | length > 0
@@ -61,7 +60,7 @@
     - service_account.yml.j2
     - job_definition.yml.j2
 
-- name: Wait for AWX deletion runner to finish
+- name: Wait for deletion runner
   kubernetes.core.k8s_info:
     kind: Job
     api_version: batch/v1
@@ -76,21 +75,21 @@
   delay: 2
   when: state | default('present') == 'absent'
 
-- name: Fail finalization when AWX deletion runner failed
+- name: Fail finalization when deletion failed
   ansible.builtin.fail:
-    msg: "AWX {{ kind }} deletion runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
+    msg: "AWX credential type deletion runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
   when:
     - state | default('present') == 'absent'
     - deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1
 
-- name: Update AnsibleGroup status with runner job info
+- name: Update AnsibleCredentialType status
   operator_sdk.util.k8s_status:
     api_version: tower.ansible.com/v1alpha1
-    kind: AnsibleGroup
+    kind: AnsibleCredentialType
     name: "{{ ansible_operator_meta.name }}"
     namespace: "{{ ansible_operator_meta.namespace }}"
     status:
       k8sJob:
         created: true
         namespacedName: "{{ ansible_operator_meta.namespace + '/' + ansible_operator_meta.name }}"
-        message: "AWX Host group operation submitted to the job runner"
+        message: "AWX credential type operation submitted to the job runner"

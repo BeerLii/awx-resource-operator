@@ -24,6 +24,14 @@
   role: workflow
 - version: v1alpha1
   group: tower.ansible.com
+  kind: AnsibleCredentialType
+  role: credentialtype
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
+- version: v1alpha1
+  group: tower.ansible.com
   kind: AnsibleCredential
   role: credential
   finalizer:
@@ -46,12 +54,24 @@
   group: tower.ansible.com
   kind: AnsibleHost
   role: host
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
 - version: v1alpha1
   group: tower.ansible.com
   kind: AnsibleGroup
   role: group
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
 - version: v1alpha1
   group: tower.ansible.com
   kind: AnsibleInventory
   role: inventory
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
 #+kubebuilder:scaffold:watch

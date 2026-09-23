@@ -65,6 +65,10 @@ spec:
               runner_pull_policy:
                 type: string
                 description: Runner image pull policy used when running jobs
+              sync:
+                type: boolean
+                description: Run an AWX Project Update after creating or updating the project
+                default: true
             required:
             - connection_secret
             - scm_type

@@ -37,7 +37,7 @@
         children: "{{ item.children | default(omit) }}"
         preserve_existing_hosts: "{{ item.preserve_existing_hosts | default(omit) }}"
         preserve_existing_children: "{{ item.preserve_existing_children | default(omit) }}"
-        state: present
+        state: "{{ item.state | default('present') }}"
       loop: "{{ _groups }}"
       loop_control:
         label: "{{ item.name }}"
@@ -66,6 +66,7 @@
     status:
       isFinished: true
       error: false
+      observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
       message: "AWX inventory managed by the job runner"
       inventoryResult:
         changed: "{{ resource_result.changed }}"

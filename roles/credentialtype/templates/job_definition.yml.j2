@@ -1,0 +1,54 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ ansible_operator_meta.name }}"
+  namespace: "{{ ansible_operator_meta.namespace }}"
+spec:
+  ttlSecondsAfterFinished: {{ job_ttl }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: '{{ (ansible_operator_meta.labels | default({})).get("app.kubernetes.io/managed-by", "awx-resource-operator") }}'
+        app.kubernetes.io/component: awx-resource-runner
+    spec:
+      serviceAccountName: resource-operator-controller-manager-job
+      containers:
+      - name: resource-runner
+        image: "{{ _runner_image }}"
+        imagePullPolicy: "{{ _runner_pull_policy }}"
+        env:
+        - name: TOWER_OAUTH_TOKEN
+          valueFrom:
+            secretKeyRef: {name: "{{ connection_secret }}", key: token}
+        - name: CONTROLLER_OAUTH_TOKEN
+          valueFrom:
+            secretKeyRef: {name: "{{ connection_secret }}", key: token}
+        - name: TOWER_HOST
+          valueFrom:
+            secretKeyRef: {name: "{{ connection_secret }}", key: host}
+        - name: CONTROLLER_HOST
+          valueFrom:
+            secretKeyRef: {name: "{{ connection_secret }}", key: host}
+        - name: RUNNER_RESOURCE_KIND
+          value: AnsibleCredentialType
+        - name: NAME
+          value: "{{ name }}"
+        - name: DESCRIPTION
+          value: "{{ description | default('') }}"
+        - name: KIND
+          value: "{{ kind }}"
+        - name: STATE
+          value: "{{ state | default('present') }}"
+        - name: INPUTS
+          value: {{ inputs | default({}) | to_json | to_json }}
+        - name: INJECTORS
+          value: {{ injectors | default({}) | to_json | to_json }}
+        - name: RUNNER_RESOURCE_GENERATION
+          value: "{{ ansible_operator_meta.generation }}"
+        - name: RUNNER_RESOURCE_NAME
+          value: "{{ ansible_operator_meta.name }}"
+        - name: RUNNER_RESOURCE_NAMESPACE
+          value: "{{ ansible_operator_meta.namespace }}"
+      restartPolicy: Never
+  backoffLimit: {{ backoff_limit }}

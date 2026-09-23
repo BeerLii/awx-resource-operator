@@ -42,6 +42,7 @@
     status:
       isFinished: true
       error: false
+      observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
       message: "AWX host managed by the job runner"
       hostResult:
         changed: "{{ resource_result.changed }}"

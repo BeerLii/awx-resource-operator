@@ -11,3 +11,5 @@ spec:
   description: demoProject
   connection_secret: awxaccess
   runner_pull_policy: IfNotPresent
+  # Explicitly synchronize the Git repository after the project is reconciled.
+  sync: true

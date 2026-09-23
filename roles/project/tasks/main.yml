@@ -11,11 +11,38 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: ansibleproj_info
 
-- name: End play early is AnsibleProject has already finished
+- name: Check existing runner job
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: k8s_job
+
+- name: End play when the current generation has already finished
   meta: end_play
   when:
-    - ansibleproj_info['resources'][0]['status']['isFinished'] is defined
-    - ansibleproj_info['resources'][0]['status']['isFinished']
+    - ansibleproj_info.resources[0].status.isFinished | default(false) | bool
+    - ansibleproj_info.resources[0].status.observedGeneration | default(-1) | int == ansibleproj_info.resources[0].metadata.generation | int
+
+- name: Remove stale runner job before processing an updated project
+  kubernetes.core.k8s:
+    state: absent
+    api_version: batch/v1
+    kind: Job
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  when:
+    - k8s_job.resources | length > 0
+    - ansibleproj_info.resources[0].status.observedGeneration | default(-1) | int != ansibleproj_info.resources[0].metadata.generation | int
+    - (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or k8s_job.resources[0].status.failed | default(0) | int > 0)
+
+- name: End play when the project runner job is already active
+  meta: end_play
+  when:
+    - k8s_job.resources | length > 0
+    - not (k8s_job.resources[0].status.succeeded | default(0) | int > 0)
+    - not (k8s_job.resources[0].status.failed | default(0) | int > 0)
 
 - block:
     - name: Check number of attempts to execute the job have been made
@@ -79,7 +106,7 @@
 
 - name: Set project name
   set_fact:
-    _project_name: "{{ name}}"
+    _project_name: "{{ name }}"
 
 - name: Update AnsibleProject status with K8s job info
   operator_sdk.util.k8s_status:
@@ -100,4 +127,5 @@
           inventory: "{{ inventory | default(omit) }}"
           secretNamespacedName: "{{ ansible_operator_meta.namespace+'/'+(connection_secret | default(tower_auth_secret, true)) }}"
           projectName: "{{ _project_name }}"
+          observedGeneration: "{{ ansible_operator_meta.generation }}"
           verifySSL: false

@@ -15,12 +15,6 @@
   set_fact:
     _inventory_groups: "{{ resource_info.resources[0].spec.groups | default([]) }}"
 
-- name: End play early when runner job already finished
-  meta: end_play
-  when:
-    - resource_info.resources[0].status.isFinished is defined
-    - resource_info.resources[0].status.isFinished
-
 - name: Check existing runner job
   kubernetes.core.k8s_info:
     kind: Job
@@ -29,12 +23,34 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: k8s_job
 
-- name: End play early when runner job is already active
+- name: End play when the current generation has already finished
   meta: end_play
   when:
-    - k8s_job.resources is defined
+    - state | default('present') != 'absent'
+    - resource_info.resources[0].status.isFinished | default(false) | bool
+    - resource_info.resources[0].status.observedGeneration | default(-1) | int == resource_info.resources[0].metadata.generation | int
+
+- name: Remove stale runner job before processing a changed or deleted resource
+  kubernetes.core.k8s:
+    state: absent
+    api_version: batch/v1
+    kind: Job
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  when:
+    - k8s_job.resources | length > 0
+    - (state | default('present') == 'absent') or
+      (resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int and
+       (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+        k8s_job.resources[0].status.failed | default(0) | int > 0))
+
+- name: End play when a runner job is already active
+  meta: end_play
+  when:
     - k8s_job.resources | length > 0
     - state | default('present') != 'absent'
+    - not (k8s_job.resources[0].status.succeeded | default(0) | int > 0)
+    - not (k8s_job.resources[0].status.failed | default(0) | int > 0)
 
 - name: Set runner image
   set_fact:
@@ -48,6 +64,28 @@
   loop:
     - service_account.yml.j2
     - job_definition.yml.j2
+
+- name: Wait for AWX deletion runner to finish
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: deletion_job
+  until: >-
+    deletion_job.resources | length > 0 and
+    (deletion_job.resources[0].status.succeeded | default(0) | int == 1 or
+     deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1)
+  retries: 60
+  delay: 2
+  when: state | default('present') == 'absent'
+
+- name: Fail finalization when AWX deletion runner failed
+  ansible.builtin.fail:
+    msg: "AWX {{ kind }} deletion runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
+  when:
+    - state | default('present') == 'absent'
+    - deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1
 
 - name: Update AnsibleInventory status with runner job info
   operator_sdk.util.k8s_status:

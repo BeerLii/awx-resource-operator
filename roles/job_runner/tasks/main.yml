@@ -23,6 +23,10 @@
     - lookup('env','ANSIBLEINSTANCEGROUP_NAME') is defined
     - lookup('env','ANSIBLEINSTANCEGROUP_NAME') != ''
 
+- name: Manage Credential Type
+  include_tasks: create_credential_type.yml
+  when: lookup('env', 'RUNNER_RESOURCE_KIND') == 'AnsibleCredentialType'
+
 - name: Manage Inventory
   include_tasks: create_inventory.yml
   when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleInventory'
