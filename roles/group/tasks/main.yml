@@ -11,6 +11,10 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: resource_info
 
+- name: Set resource generation
+  set_fact:
+    _resource_generation: "{{ resource_info.resources[0].metadata.generation | default(1) }}"
+
 - name: Check existing runner job
   kubernetes.core.k8s_info:
     kind: Job

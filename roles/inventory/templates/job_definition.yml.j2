@@ -61,7 +61,7 @@ spec:
             - name: CONTROLLER_VERIFY_SSL
               value: "False"
             - name: RUNNER_RESOURCE_GENERATION
-              value: "{{ ansible_operator_meta.generation }}"
+              value: "{{ _resource_generation | default(1) }}"
             - name: RUNNER_RESOURCE_NAME
               value: "{{ ansible_operator_meta.name }}"
             - name: RUNNER_RESOURCE_NAMESPACE

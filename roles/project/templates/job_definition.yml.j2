@@ -76,7 +76,7 @@ spec:
             - name: ANSIBLEPROJECT_NAMESPACE
               value: "{{ ansible_operator_meta.namespace }}"
             - name: RUNNER_RESOURCE_GENERATION
-              value: "{{ ansible_operator_meta.generation }}"
+              value: "{{ _resource_generation | default(1) }}"
             - name: SYNC
               value: "{{ sync | default(true) | bool | lower }}"
       restartPolicy: Never

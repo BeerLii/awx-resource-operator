@@ -11,6 +11,10 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: ansibleproj_info
 
+- name: Set resource generation
+  set_fact:
+    _resource_generation: "{{ ansibleproj_info.resources[0].metadata.generation | default(1) }}"
+
 - name: Check existing runner job
   kubernetes.core.k8s_info:
     kind: Job
@@ -127,5 +131,5 @@
           inventory: "{{ inventory | default(omit) }}"
           secretNamespacedName: "{{ ansible_operator_meta.namespace+'/'+(connection_secret | default(tower_auth_secret, true)) }}"
           projectName: "{{ _project_name }}"
-          observedGeneration: "{{ ansible_operator_meta.generation }}"
+          observedGeneration: "{{ _resource_generation | default(1) }}"
           verifySSL: false
