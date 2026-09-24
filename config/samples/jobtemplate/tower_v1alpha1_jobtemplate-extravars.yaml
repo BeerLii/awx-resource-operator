@@ -1,9 +1,0 @@
-apiVersion: tower.ansible.com/v1alpha1
-kind: JobTemplateExtraVars
-metadata:
-  name: deploy-common-vars
-spec:
-  variables:
-    application_name: order-service
-    environment: uat
-    release_version: "1.0.0"

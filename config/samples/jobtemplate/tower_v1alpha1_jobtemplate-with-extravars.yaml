@@ -8,6 +8,8 @@ spec:
   project: Demo Project
   playbook: deploy.yml
   inventory: all-environments
-  extra_vars_ref:
-    name: deploy-common-vars
+  extra_vars:
+    application_name: order-service
+    environment: uat
+    release_version: "1.0.0"
   ask_limit_on_launch: true

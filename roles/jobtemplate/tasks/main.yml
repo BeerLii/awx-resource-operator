@@ -24,28 +24,12 @@
     namespace: "{{ ansible_operator_meta.namespace }}"
   register: k8s_job
 
-- name: Read referenced JobTemplateExtraVars generation
-  kubernetes.core.k8s_info:
-    api_version: tower.ansible.com/v1alpha1
-    kind: JobTemplateExtraVars
-    name: "{{ resource_info.resources[0].spec.extra_vars_ref.name }}"
-    namespace: "{{ ansible_operator_meta.namespace }}"
-  register: referenced_extra_vars
-  when:
-    - resource_info.resources[0].spec.extra_vars_ref is defined
-    - resource_info.resources[0].spec.extra_vars_ref.name is defined
-
 - name: End play when the current generation has already finished
   meta: end_play
   when:
     - state | default('present') != 'absent'
     - resource_info.resources[0].status.isFinished | default(false) | bool
     - resource_info.resources[0].status.observedGeneration | default(-1) | int == resource_info.resources[0].metadata.generation | int
-    - >-
-      resource_info.resources[0].spec.extra_vars_ref is not defined or
-      (referenced_extra_vars.resources | default([]) | length == 0) or
-      (resource_info.resources[0].status.observedExtraVarsGeneration | default('') | string ==
-      (referenced_extra_vars.resources[0].metadata.generation | default(0) | string))
 
 - name: Remove stale runner job before processing a changed or deleted resource
   kubernetes.core.k8s:
@@ -60,11 +44,7 @@
        k8s_job.resources[0].status.failed | default(0) | int > 0)
     - >-
       (state | default('present') == 'absent') or
-      (resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int) or
-      (resource_info.resources[0].spec.extra_vars_ref is defined and
-       (referenced_extra_vars.resources | default([]) | length > 0) and
-       (resource_info.resources[0].status.observedExtraVarsGeneration | default('') | string !=
-       (referenced_extra_vars.resources[0].metadata.generation | default(0) | string)))
+      resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int
 
 - name: End play when a runner job is already active
   meta: end_play

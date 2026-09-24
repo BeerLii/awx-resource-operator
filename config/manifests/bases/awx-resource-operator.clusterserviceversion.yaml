@@ -256,16 +256,6 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:text
         - urn:alm:descriptor:com.tectonic.ui:advanced
       version: v1alpha1
-    - description: Define non-sensitive extra variables referenced by AWX Job Templates
-      displayName: AWX Job Template Extra Variables
-      kind: JobTemplateExtraVars
-      name: jobtemplateextravars.tower.ansible.com
-      specDescriptors:
-      - displayName: Variables
-        path: variables
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:yaml
-      version: v1alpha1
     - description: Define a new job template in awx
       displayName: AWX Job Template
       kind: JobTemplate
@@ -320,6 +310,10 @@ spec:
         path: ask_variables_on_launch
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Extra Variables
+        path: extra_vars
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:yaml
       - displayName: Job Template Ask Limit on Launch
         path: ask_limit_on_launch
         x-descriptors:

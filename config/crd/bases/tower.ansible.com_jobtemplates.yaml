@@ -67,14 +67,10 @@ spec:
               ask_limit_on_launch:
                 type: boolean
                 description: Allow the limit host pattern to be supplied when launching the Job Template
-              extra_vars_ref:
+              extra_vars:
                 type: object
-                description: Reference to a JobTemplateExtraVars resource in the same namespace
-                properties:
-                  name:
-                    type: string
-                required:
-                - name
+                description: Non-sensitive variables passed to the AWX Job Template
+                x-kubernetes-preserve-unknown-fields: true
               tower_auth_secret:
                 type: string
                 description: |
