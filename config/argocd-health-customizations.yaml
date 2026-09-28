@@ -22,17 +22,15 @@ data:
 
         local message = obj.status.message or ""
 
-        if obj.status.phase == "Failed"
-           or obj.status.phase == "Error"
-           or obj.status.failed == true then
+        if obj.status.error == true then
           hs.status = "Degraded"
-          hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
+          hs.message = message ~= "" and message or "AnsibleHost runner Job failed"
           return hs
         end
 
         if obj.status.isFinished == true then
           hs.status = "Healthy"
-          hs.message = message ~= "" and message or "AnsibleGroup synchronized successfully"
+          hs.message = message ~= "" and message or "AnsibleHost synchronized successfully"
           return hs
         end
 
@@ -58,9 +56,7 @@ data:
 
         local message = obj.status.message or ""
 
-        if obj.status.phase == "Failed"
-           or obj.status.phase == "Error"
-           or obj.status.failed == true then
+        if obj.status.error == true then
           hs.status = "Degraded"
           hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
           return hs

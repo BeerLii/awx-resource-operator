@@ -29,6 +29,8 @@
         status:
           isFinished: true
           error: true
+          observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+          retryCount: "{{ lookup('env','RUNNER_RETRY_COUNT') | default('1', true) | int }}"
           message: "AWX host operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
     - name: Stop host runner after failure
       meta: end_play
@@ -42,6 +44,7 @@
     status:
       isFinished: true
       error: false
+      retryCount: 0
       observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
       message: "AWX host managed by the job runner"
       hostResult:

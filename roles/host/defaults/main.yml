@@ -2,3 +2,4 @@
 # defaults file for AnsibleHost
 job_ttl: 86400
 backoff_limit: 1
+max_retries: 3

@@ -29,6 +29,8 @@
     - state | default('present') != 'absent'
     - resource_info.resources[0].status.isFinished | default(false) | bool
     - resource_info.resources[0].status.observedGeneration | default(-1) | int == resource_info.resources[0].metadata.generation | int
+    - (not (resource_info.resources[0].status.error | default(false) | bool) or
+       resource_info.resources[0].status.retryCount | default(0) | int >= max_retries | int)
 
 - name: Remove stale runner job before processing a changed or deleted resource
   kubernetes.core.k8s:
@@ -40,8 +42,11 @@
   when:
     - k8s_job.resources | length > 0
     - (state | default('present') == 'absent') or
-      (resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int and
-       (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+      ((resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int and
+        (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+         k8s_job.resources[0].status.failed | default(0) | int > 0)) or
+       (resource_info.resources[0].status.error | default(false) | bool and
+        resource_info.resources[0].status.retryCount | default(0) | int < max_retries | int and
         k8s_job.resources[0].status.failed | default(0) | int > 0))
 
 - name: End play when a runner job is already active
