@@ -21,13 +21,11 @@ data:
         end
 
         local message = obj.status.message or ""
-        local lower_message = string.lower(message)
-
-        if obj.status.isFinished == true then
-          if string.find(lower_message, "failed") ~= nil
-             or string.find(lower_message, "failure") ~= nil
-             or string.find(lower_message, "error") ~= nil
-             or string.find(lower_message, "backoff") ~= nil then
+            if obj.status.isFinished == true then
+          if string.find(message, "failed") ~= nil
+             or string.find(message, "failure") ~= nil
+             or string.find(message, "error") ~= nil
+             or string.find(message, "backoff") ~= nil then
             hs.status = "Degraded"
             hs.message = message ~= "" and message or "AnsibleHost runner Job failed"
           else
@@ -58,13 +56,11 @@ data:
         end
 
         local message = obj.status.message or ""
-        local lower_message = string.lower(message)
-
-        if obj.status.isFinished == true then
-          if string.find(lower_message, "failed") ~= nil
-             or string.find(lower_message, "failure") ~= nil
-             or string.find(lower_message, "error") ~= nil
-             or string.find(lower_message, "backoff") ~= nil then
+            if obj.status.isFinished == true then
+          if string.find(message, "failed") ~= nil
+             or string.find(message, "failure") ~= nil
+             or string.find(message, "error") ~= nil
+             or string.find(message, "backoff") ~= nil then
             hs.status = "Degraded"
             hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
           else
