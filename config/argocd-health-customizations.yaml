@@ -1,0 +1,81 @@
+# Argo CD health checks for AWX Resource Operator resources.
+#
+# Merge these entries into the existing argocd-cm ConfigMap in the argocd
+# namespace. Do not replace unrelated keys already present in argocd-cm.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.customizations.health.tower.ansible.com_AnsibleHost: |
+    hs = {}
+
+    if obj.status == nil then
+      hs.status = "Progressing"
+      hs.message = "Waiting for AnsibleHost status"
+      return hs
+    end
+
+    local message = obj.status.message or ""
+    local lower_message = string.lower(message)
+
+    if obj.status.isFinished == true then
+      if string.find(lower_message, "failed") ~= nil
+         or string.find(lower_message, "failure") ~= nil
+         or string.find(lower_message, "error") ~= nil
+         or string.find(lower_message, "backoff") ~= nil then
+        hs.status = "Degraded"
+        hs.message = message ~= "" and message or "AnsibleHost runner Job failed"
+      else
+        hs.status = "Healthy"
+        hs.message = message ~= "" and message or "AnsibleHost synchronized successfully"
+      end
+      return hs
+    end
+
+    if obj.status.k8sJob ~= nil and obj.status.k8sJob.created == true then
+      hs.status = "Progressing"
+      hs.message = obj.status.k8sJob.message or "AnsibleHost runner Job is running"
+      return hs
+    end
+
+    hs.status = "Progressing"
+    hs.message = message ~= "" and message or "Waiting for AnsibleHost runner Job"
+    return hs
+
+  resource.customizations.health.tower.ansible.com_AnsibleGroup: |
+    hs = {}
+
+    if obj.status == nil then
+      hs.status = "Progressing"
+      hs.message = "Waiting for AnsibleGroup status"
+      return hs
+    end
+
+    local message = obj.status.message or ""
+    local lower_message = string.lower(message)
+
+    if obj.status.isFinished == true then
+      if string.find(lower_message, "failed") ~= nil
+         or string.find(lower_message, "failure") ~= nil
+         or string.find(lower_message, "error") ~= nil
+         or string.find(lower_message, "backoff") ~= nil then
+        hs.status = "Degraded"
+        hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
+      else
+        hs.status = "Healthy"
+        hs.message = message ~= "" and message or "AnsibleGroup synchronized successfully"
+      end
+      return hs
+    end
+
+    if obj.status.k8sJob ~= nil and obj.status.k8sJob.created == true then
+      hs.status = "Progressing"
+      hs.message = obj.status.k8sJob.message or "AnsibleGroup runner Job is running"
+      return hs
+    end
+
+    hs.status = "Progressing"
+    hs.message = message ~= "" and message or "Waiting for AnsibleGroup runner Job"
+    return hs
