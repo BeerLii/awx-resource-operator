@@ -38,6 +38,9 @@
   group: tower.ansible.com
   kind: AnsibleCredential
   role: credential
+  # Referenced Secrets are not owned by the Credential, so periodically
+  # reconcile to detect resourceVersion changes without storing Secret data.
+  reconcilePeriod: 1m
   finalizer:
     name: finalizer.tower.ansible.com
     vars:

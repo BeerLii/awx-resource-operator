@@ -15,9 +15,98 @@
   set_fact:
     _resource_generation: "{{ resource_info.resources[0].metadata.generation | default(1) }}"
 
-- name: Capture inventory host groups from the resource spec
+- name: Capture inventory name and host groups from the resource spec
   set_fact:
+    _inventory_name: "{{ resource_info.resources[0].spec.name }}"
     _inventory_groups: "{{ resource_info.resources[0].spec.groups | default([]) }}"
+
+- name: Read dependent Kubernetes hosts
+  kubernetes.core.k8s_info:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleHost
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: dependent_hosts
+  when: state | default('present') == 'absent'
+
+- name: Read dependent Kubernetes groups
+  kubernetes.core.k8s_info:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleGroup
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: dependent_groups
+  when: state | default('present') == 'absent'
+
+- name: Calculate dependent Kubernetes host resources
+  set_fact:
+    _dependent_hosts: >-
+      {{ dependent_hosts.resources | default([]) |
+         selectattr('spec.inventory', 'defined') |
+         selectattr('spec.inventory', 'equalto', _inventory_name) |
+         list }}
+  when: state | default('present') == 'absent'
+
+- name: Calculate dependent Kubernetes group resources
+  set_fact:
+    _dependent_groups: >-
+      {{ dependent_groups.resources | default([]) |
+         selectattr('spec.inventory', 'defined') |
+         selectattr('spec.inventory', 'equalto', _inventory_name) |
+         list }}
+  when: state | default('present') == 'absent'
+
+- name: Delete dependent Kubernetes host resources
+  kubernetes.core.k8s:
+    state: absent
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleHost
+    name: "{{ item.metadata.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  loop: "{{ _dependent_hosts | default([]) }}"
+  loop_control:
+    label: "AnsibleHost/{{ item.metadata.name }}"
+  when: state | default('present') == 'absent'
+
+- name: Delete dependent Kubernetes group resources
+  kubernetes.core.k8s:
+    state: absent
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleGroup
+    name: "{{ item.metadata.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  loop: "{{ _dependent_groups | default([]) }}"
+  loop_control:
+    label: "AnsibleGroup/{{ item.metadata.name }}"
+  when: state | default('present') == 'absent'
+
+- name: Wait for dependent Kubernetes hosts to be deleted
+  kubernetes.core.k8s_info:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleHost
+    name: "{{ item.metadata.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: dependent_host_deleted
+  until: dependent_host_deleted.resources | length == 0
+  retries: 180
+  delay: 2
+  loop: "{{ _dependent_hosts | default([]) }}"
+  loop_control:
+    label: "AnsibleHost/{{ item.metadata.name }}"
+  when: state | default('present') == 'absent'
+
+- name: Wait for dependent Kubernetes groups to be deleted
+  kubernetes.core.k8s_info:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleGroup
+    name: "{{ item.metadata.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: dependent_group_deleted
+  until: dependent_group_deleted.resources | length == 0
+  retries: 180
+  delay: 2
+  loop: "{{ _dependent_groups | default([]) }}"
+  loop_control:
+    label: "AnsibleGroup/{{ item.metadata.name }}"
+  when: state | default('present') == 'absent'
 
 - name: Check existing runner job
   kubernetes.core.k8s_info:
