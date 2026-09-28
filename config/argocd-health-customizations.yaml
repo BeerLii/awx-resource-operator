@@ -21,17 +21,18 @@ data:
         end
 
         local message = obj.status.message or ""
-            if obj.status.isFinished == true then
-          if string.find(message, "failed") ~= nil
-             or string.find(message, "failure") ~= nil
-             or string.find(message, "error") ~= nil
-             or string.find(message, "backoff") ~= nil then
-            hs.status = "Degraded"
-            hs.message = message ~= "" and message or "AnsibleHost runner Job failed"
-          else
-            hs.status = "Healthy"
-            hs.message = message ~= "" and message or "AnsibleHost synchronized successfully"
-          end
+
+        if obj.status.phase == "Failed"
+           or obj.status.phase == "Error"
+           or obj.status.failed == true then
+          hs.status = "Degraded"
+          hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
+          return hs
+        end
+
+        if obj.status.isFinished == true then
+          hs.status = "Healthy"
+          hs.message = message ~= "" and message or "AnsibleGroup synchronized successfully"
           return hs
         end
 
@@ -56,17 +57,18 @@ data:
         end
 
         local message = obj.status.message or ""
-            if obj.status.isFinished == true then
-          if string.find(message, "failed") ~= nil
-             or string.find(message, "failure") ~= nil
-             or string.find(message, "error") ~= nil
-             or string.find(message, "backoff") ~= nil then
-            hs.status = "Degraded"
-            hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
-          else
-            hs.status = "Healthy"
-            hs.message = message ~= "" and message or "AnsibleGroup synchronized successfully"
-          end
+
+        if obj.status.phase == "Failed"
+           or obj.status.phase == "Error"
+           or obj.status.failed == true then
+          hs.status = "Degraded"
+          hs.message = message ~= "" and message or "AnsibleGroup runner Job failed"
+          return hs
+        end
+
+        if obj.status.isFinished == true then
+          hs.status = "Healthy"
+          hs.message = message ~= "" and message or "AnsibleGroup synchronized successfully"
           return hs
         end
 
