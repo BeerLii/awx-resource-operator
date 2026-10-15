@@ -46,7 +46,8 @@ spec:
 * AnsibleCredential / AnsibleCredentialType - manages credentials and credential types.
 * AnsibleInventory / AnsibleHost / AnsibleGroup - manages inventories, hosts and host groups.
 * AnsibleInstanceGroup / AnsibleSchedule - manages instance groups and schedules.
-* AnsibleUser - grants AWX user type permissions to an existing user.
+* AnsibleUser - grants AWX user type permissions to an existing user. Deleting
+  the resource revokes those permissions and keeps the user as a normal user.
 * AnsibleTeam - creates an AWX team, grants AWX roles to the team and adds usernames as team members.
 * AnsibleExecutionEnvironment - creates an AWX execution environment (container image) inside an organization.
 
@@ -315,12 +316,28 @@ Optional `first_name`, `last_name`, `email` and `organization` fields update the
 user profile. When `password_secret` names a k8s Secret (in the same namespace as
 the resource) containing a `password` key, the user is created in AWX if it does
 not exist yet and the password is applied; without it, the user must already
-exist in AWX. Set `state: absent` to delete the user.
+exist in AWX.
+
+Deleting the `AnsibleUser` resource (or setting `state: absent`) does **not**
+delete the AWX user. It only revokes the System Administrator / System Auditor
+user types and keeps the user as a normal user, because the AWX account is
+usually created automatically on first login and deleting it would break the
+login flow (recreating it without a password fails with
+`Password required for new User.`). The operator finalizer drives this through
+the job runner, so the same `state: absent` value is translated into
+`is_superuser: false` + `is_system_auditor: false` instead of a user deletion.
 
 AnsibleUser 通过 `spec.username` 指定要管理的 AWX 用户，并使用 `is_superuser`
 / `is_system_auditor` 授予 System Administrator / System Auditor 用户类型权限。
 只有在资源中显式声明这两个字段时才会下发到 AWX，因此不会意外修改已有用户的
 用户类型；将它们设为 `false` 即可撤销对应权限。
+
+删除 `AnsibleUser` 资源（或设置 `state: absent`）**不会删除** AWX 用户，只会撤销
+System Administrator / System Auditor 用户类型，并把用户保留为 normal user。
+因为 AWX 用户通常是首次登录时自动创建的，删除后重新创建没有密码会失败
+（`Password required for new User.`）。operator 的 finalizer 会驱动 job runner
+把 `state: absent` 翻译成 `is_superuser: false` + `is_system_auditor: false`，
+而不是删除用户记录。
 
 ### AnsibleTeam
 

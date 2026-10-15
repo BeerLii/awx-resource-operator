@@ -18,9 +18,89 @@
     _is_system_auditor: "{{ lookup('env','IS_SYSTEM_AUDITOR') | default('', true) | bool }}"
     _is_system_auditor_set: "{{ lookup('env','IS_SYSTEM_AUDITOR') | default('', true) | string | length > 0 }}"
     _state: "{{ lookup('env','STATE') | default('present', true) }}"
+    # The AnsibleUser resource only owns the AWX user *type* (superuser /
+    # system auditor), never the user record itself. When the resource is
+    # deleted the operator finalizer runs this role with state=absent, which is
+    # translated below into "revoke the user types, keep the user as a normal
+    # user" instead of "delete the AWX user".
+    _revoke_user_types: "{{ lookup('env','STATE') | default('present', true) == 'absent' }}"
+
+# The AWX user record is provisioned by the SSO login, not by this resource, so
+# look the account up once and reuse the result for the "does it exist yet?"
+# decision below and for the revocation path.
+- name: Look up the AWX users
+  set_fact:
+    _user_lookup: "{{ lookup('awx.awx.controller_api', '/users/', return_all=True) }}"
+
+# return_all=True normally yields the list of result items; tolerate a raw
+# paginated response dict as well, so the existence check never mistakes the
+# response envelope for the user list.
+- name: Determine whether the AWX user exists
+  set_fact:
+    _user_exists: >-
+      {{ ((_user_lookup.results if _user_lookup is mapping else _user_lookup) | list)
+         | selectattr('username', 'defined')
+         | selectattr('username', 'equalto', _username)
+         | list | length > 0 }}
+
+# AnsibleUser does not create the AWX user record: the account is created by the
+# SSO login on first access, and creating it here without a password fails with
+# "Password required for new User.". While the account is still unknown, record
+# that the resource is waiting for the SSO login and stop the runner. The
+# operator reconciles this resource periodically (reconcilePeriod in
+# watches.yaml), so the user types are applied automatically as soon as the
+# account shows up. The only exception is an explicit password_secret: with a
+# password the runner is allowed to create the user itself.
+- name: Mark the AnsibleUser resource as waiting for the SSO login
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleUser
+    name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: false
+      error: false
+      retryCount: 0
+      waitingForSSO: true
+      observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+      message: "AWX user '{{ _username }}' does not exist yet; waiting for the SSO login to provision it"
+  when:
+    - _state == 'present'
+    - not (_user_exists | default(false) | bool)
+    - _password | length == 0
+
+- name: Stop the runner until the SSO login has provisioned the AWX user
+  meta: end_play
+  when:
+    - _state == 'present'
+    - not (_user_exists | default(false) | bool)
+    - _password | length == 0
 
 - name: Manage AWX user
   block:
+    # Deleting the AnsibleUser resource must not delete the AWX user record:
+    # the user is expected to be auto-created on first login, and recreating a
+    # deleted user without a password fails with
+    # "Password required for new User.". Demoting the user back to a normal
+    # user keeps the account and the login flow intact.
+    - name: Revoke AWX user types and demote the user to a normal user
+      awx.awx.user:
+        username: "{{ _username }}"
+        is_superuser: false
+        is_system_auditor: false
+        state: present
+      register: resource_result
+      when:
+        - _revoke_user_types | bool
+        - _user_exists | default(false) | bool
+
+    - name: Report no change when the AWX user no longer exists
+      set_fact:
+        resource_result: "{{ {'changed': false} }}"
+      when:
+        - _revoke_user_types | bool
+        - not (_user_exists | default(false) | bool)
+
     - name: Create or update AWX user
       awx.awx.user:
         username: "{{ _username }}"
@@ -35,6 +115,7 @@
         is_system_auditor: "{{ _is_system_auditor | bool if _is_system_auditor_set else omit }}"
         state: "{{ _state }}"
       register: resource_result
+      when: not (_revoke_user_types | bool)
   rescue:
     - name: Update user status after runner failure
       operator_sdk.util.k8s_status:
@@ -45,6 +126,7 @@
         status:
           isFinished: true
           error: true
+          waitingForSSO: false
           observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
           retryCount: "{{ lookup('env','RUNNER_RETRY_COUNT') | default('1', true) | int }}"
           message: "AWX user operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
@@ -60,8 +142,11 @@
     status:
       isFinished: true
       error: false
+      # Clears the flag set while the resource was waiting for the SSO login.
+      waitingForSSO: false
       retryCount: 0
       observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
-      message: "AWX user managed by the job runner"
+      message: "{{ 'AWX user types revoked, user kept as a normal user' if _revoke_user_types | bool else 'AWX user managed by the job runner' }}"
       userResult:
         changed: "{{ resource_result.changed }}"
+        revokedUserTypes: "{{ _revoke_user_types | bool }}"

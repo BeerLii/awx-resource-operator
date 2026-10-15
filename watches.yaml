@@ -88,6 +88,10 @@
   finalizer:
     name: finalizer.tower.ansible.com
     vars:
+      # Deleting the AnsibleUser resource only revokes the AWX user types
+      # (superuser / system auditor) and keeps the AWX user as a normal user.
+      # The AWX user record is never deleted. See
+      # roles/job_runner/tasks/create_user.yml.
       state: absent
 - version: v1alpha1
   group: tower.ansible.com

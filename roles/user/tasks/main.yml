@@ -70,7 +70,9 @@
     - service_account.yml.j2
     - job_definition.yml.j2
 
-- name: Wait for AWX deletion runner to finish
+# Deleting the AnsibleUser resource only revokes the AWX user types and keeps
+# the AWX user as a normal user; the runner never deletes the user record.
+- name: Wait for AWX user type revocation runner to finish
   kubernetes.core.k8s_info:
     kind: Job
     api_version: batch/v1
@@ -85,9 +87,9 @@
   delay: 2
   when: state | default('present') == 'absent'
 
-- name: Fail finalization when AWX deletion runner failed
+- name: Fail finalization when the AWX user type revocation runner failed
   ansible.builtin.fail:
-    msg: "AWX {{ kind }} deletion runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
+    msg: "AWX user type revocation runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
   when:
     - state | default('present') == 'absent'
     - deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1
@@ -102,4 +104,4 @@
       k8sJob:
         created: true
         namespacedName: "{{ ansible_operator_meta.namespace + '/' + ansible_operator_meta.name }}"
-        message: "AWX User operation submitted to the job runner"
+        message: "AWX user operation submitted to the job runner"

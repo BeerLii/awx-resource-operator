@@ -56,16 +56,22 @@ spec:
                 description: >-
                   Grant the System Administrator (superuser) user type. Only applied
                   when set, so an existing user type is never changed implicitly.
+                  Deleting the resource revokes this user type.
               is_system_auditor:
                 type: boolean
                 description: >-
                   Grant the System Auditor user type. Only applied when set, so an
-                  existing user type is never changed implicitly.
+                  existing user type is never changed implicitly. Deleting the
+                  resource revokes this user type.
               state:
                 type: string
                 default: present
                 enum: ["present", "absent", "exists"]
-                description: Desired state of the resource
+                description: >-
+                  Desired state of the resource. 'absent' (and deleting the
+                  resource) revokes the superuser / system auditor user types and
+                  keeps the AWX user as a normal user; the AWX user record is never
+                  deleted.
               connection_secret:
                 type: string
                 description: Kubernetes Secret containing the AWX host and token

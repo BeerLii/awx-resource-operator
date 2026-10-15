@@ -5,5 +5,8 @@ metadata:
 spec:
   connection_secret: awxaccess
   username: beer-user
+  # Grants the System Administrator user type. Set to false (or delete this
+  # resource) to revoke it; deleting the resource never deletes the AWX user,
+  # it only demotes the user back to a normal user.
   is_superuser: true
   state: present
