@@ -1,0 +1,59 @@
+---
+- name: Read execution environment runner arguments
+  set_fact:
+    _name: "{{ lookup('env','EXECUTION_ENVIRONMENT_NAME') }}"
+    _organization: "{{ lookup('env','EXECUTION_ENVIRONMENT_ORGANIZATION') }}"
+    _image: "{{ lookup('env','EXECUTION_ENVIRONMENT_IMAGE') | default('', true) }}"
+    _description: "{{ lookup('env','EXECUTION_ENVIRONMENT_DESCRIPTION') | default('', true) }}"
+    _credential: "{{ lookup('env','EXECUTION_ENVIRONMENT_CREDENTIAL') | default('', true) }}"
+    _pull: "{{ lookup('env','EXECUTION_ENVIRONMENT_PULL') | default('', true) }}"
+    _state: "{{ lookup('env','STATE') | default('present', true) }}"
+
+- name: Manage AWX execution environment
+  block:
+    - name: Create or update AWX execution environment
+      awx.awx.execution_environment:
+        name: "{{ _name }}"
+        organization: "{{ _organization }}"
+        image: "{{ _image if _image | length > 0 else omit }}"
+        description: "{{ _description if _description | length > 0 else omit }}"
+        credential: "{{ _credential if _credential | length > 0 else omit }}"
+        pull: "{{ _pull if _pull | length > 0 else omit }}"
+        state: "{{ _state }}"
+      register: resource_result
+
+    - name: Compute the execution environment change status
+      set_fact:
+        _execution_environment_changed: "{{ resource_result.changed | default(false) }}"
+  rescue:
+    - name: Update execution environment status after runner failure
+      operator_sdk.util.k8s_status:
+        api_version: tower.ansible.com/v1alpha1
+        kind: AnsibleExecutionEnvironment
+        name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+        namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+        status:
+          isFinished: true
+          error: true
+          observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+          retryCount: "{{ lookup('env','RUNNER_RETRY_COUNT') | default('1', true) | int }}"
+          message: "AWX execution environment operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - name: Stop execution environment runner after failure
+      meta: end_play
+
+- name: Update execution environment status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleExecutionEnvironment
+    name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: true
+      error: false
+      retryCount: 0
+      observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+      message: "AWX execution environment managed by the job runner"
+      executionEnvironmentResult:
+        changed: "{{ _execution_environment_changed }}"
+        image: "{{ _image }}"
+        organization: "{{ _organization }}"

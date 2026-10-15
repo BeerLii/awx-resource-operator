@@ -110,6 +110,9 @@ rules:
     resources:
       - ansiblehosts/finalizers
       - ansiblegroups/finalizers
+      - ansibleusers/finalizers
+      - ansibleteams/finalizers
+      - ansibleexecutionenvironments/finalizers
       - ansibleinventories/finalizers
     verbs:
       - update

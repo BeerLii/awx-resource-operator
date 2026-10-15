@@ -1,0 +1,9 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleUser
+metadata:
+  name: beer-user
+spec:
+  connection_secret: awxaccess
+  username: beer-user
+  is_superuser: true
+  state: present

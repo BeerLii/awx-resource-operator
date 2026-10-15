@@ -6,6 +6,9 @@ resources:
 - ./credentialtypes/
 - ./host/
 - ./group/
+- ./user/
+- ./team/
+- ./executionenvironment/
 - ./inventory/
 - ./instancegroup/
 - ./jobtemplate/

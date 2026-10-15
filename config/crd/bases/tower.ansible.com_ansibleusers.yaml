@@ -1,0 +1,80 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ansibleusers.tower.ansible.com
+spec:
+  group: tower.ansible.com
+  names:
+    kind: AnsibleUser
+    listKind: AnsibleUserList
+    plural: ansibleusers
+    singular: ansibleuser
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: User is the Schema for the AWX users API
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            description: Spec defines the desired state of an AWX user
+            required:
+            - username
+            - connection_secret
+            properties:
+              username:
+                type: string
+                description: The username of the AWX user to manage
+              first_name:
+                type: string
+                description: The first name of the user
+              last_name:
+                type: string
+                description: The last name of the user
+              email:
+                type: string
+                description: The email address of the user
+              organization:
+                type: string
+                description: Organization name, ID, or named URL the user belongs to
+              password_secret:
+                type: string
+                description: >-
+                  Kubernetes Secret containing the desired user password in the
+                  'password' key. When omitted, the user must already exist in AWX.
+              is_superuser:
+                type: boolean
+                description: >-
+                  Grant the System Administrator (superuser) user type. Only applied
+                  when set, so an existing user type is never changed implicitly.
+              is_system_auditor:
+                type: boolean
+                description: >-
+                  Grant the System Auditor user type. Only applied when set, so an
+                  existing user type is never changed implicitly.
+              state:
+                type: string
+                default: present
+                enum: ["present", "absent", "exists"]
+                description: Desired state of the resource
+              connection_secret:
+                type: string
+                description: Kubernetes Secret containing the AWX host and token
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            description: Status defines the observed state of AnsibleUser
+            x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}

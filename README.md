@@ -21,6 +21,12 @@ An operator that can be used along side [Ansible AWX](https://github.com/ansible
     - [AnsibleJob](#ansiblejob)
       - [Launching Workflows](#launching-workflows)
     - [JobTemplate](#jobtemplate)
+    - [AnsibleInventory](#ansibleinventory)
+    - [AnsibleHost](#ansiblehost)
+    - [AnsibleGroup](#ansiblegroup)
+    - [AnsibleUser](#ansibleuser)
+    - [AnsibleTeam](#ansibleteam)
+    - [AnsibleExecutionEnvironment](#ansibleexecutionenvironment)
   - [Building and Testing](#building-and-testing)
   - [Author](#author)
   - [Code of Conduct](#code-of-conduct)
@@ -28,10 +34,21 @@ An operator that can be used along side [Ansible AWX](https://github.com/ansible
 
 ## Overview
 
-There are currently two Custom Resources provided by the awx-resource-operator:
+The awx-resource-operator provides the following Custom Resources. Each resource
+acts on the AWX instance described by the `connection_secret` referenced in its
+spec:
 
-* AnsibleJob - launches a job in the AWX instance specified in the the specified k8s secret (awx host url, token)
+* AnsibleJob - launches a job in the AWX instance specified in the specified k8s secret (awx host url, token)
 * JobTemplate - creates a job template in the AWX instance specified.
+* AnsibleProject - creates a project in the AWX instance specified.
+* AnsibleWorkflow - launches a workflow in the AWX instance specified.
+* WorkflowTemplate - creates a workflow template in the AWX instance specified.
+* AnsibleCredential / AnsibleCredentialType - manages credentials and credential types.
+* AnsibleInventory / AnsibleHost / AnsibleGroup - manages inventories, hosts and host groups.
+* AnsibleInstanceGroup / AnsibleSchedule - manages instance groups and schedules.
+* AnsibleUser - grants AWX user type permissions to an existing user.
+* AnsibleTeam - creates an AWX team, grants AWX roles to the team and adds usernames as team members.
+* AnsibleExecutionEnvironment - creates an AWX execution environment (container image) inside an organization.
 
 ### Prerequisites
 
@@ -269,6 +286,132 @@ Set `state: absent` to remove the group. By default, the declared `hosts` and
 `children` are synchronized; set the corresponding `preserve_existing_*` option
 to `true` to retain existing AWX relationships not listed in the resource.
 
+
+### AnsibleUser
+
+Grant an AWX user type to an existing user with an `AnsibleUser` resource. The
+resource is keyed on `username`, so the same username can be managed from
+Kubernetes without duplicating the user record.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleUser
+metadata:
+  name: beer-user
+spec:
+  connection_secret: awx-access
+  username: beer-user
+  is_superuser: true
+  state: present
+```
+
+Set `is_superuser: true` to grant the System Administrator user type, or
+`is_system_auditor: true` to grant the System Auditor user type. Both options are
+only sent to AWX when they are present in the resource, so an existing user type
+is never changed implicitly. Set them to `false` to revoke a user type.
+
+Optional `first_name`, `last_name`, `email` and `organization` fields update the
+user profile. When `password_secret` names a k8s Secret (in the same namespace as
+the resource) containing a `password` key, the user is created in AWX if it does
+not exist yet and the password is applied; without it, the user must already
+exist in AWX. Set `state: absent` to delete the user.
+
+AnsibleUser 通过 `spec.username` 指定要管理的 AWX 用户，并使用 `is_superuser`
+/ `is_system_auditor` 授予 System Administrator / System Auditor 用户类型权限。
+只有在资源中显式声明这两个字段时才会下发到 AWX，因此不会意外修改已有用户的
+用户类型；将它们设为 `false` 即可撤销对应权限。
+
+### AnsibleTeam
+
+Create an AWX team, grant AWX roles to the team, and add usernames to the team
+with an `AnsibleTeam` resource. Team members implicitly inherit every role that
+is granted to the team, so adding a `username` to `spec.users` gives that user
+all of the permissions listed in `spec.roles`.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleTeam
+metadata:
+  name: beer-team
+spec:
+  connection_secret: awx-access
+  name: beer-team
+  organization: Default
+  description: beer team
+  users:
+    - beer-user
+  roles:
+    - role: execute
+      job_template: beer-job-template
+      state: present
+    - role: read
+      inventory: beer-inventory
+      state: present
+  preserve_existing_users: true
+  state: present
+```
+
+`spec.roles` is a list of AWX role grants. Each entry requires a `role` name
+(`admin`, `read`, `member`, `execute`, `update`, `use`, `adhoc`, `approval`,
+`auditor`, `project_admin`, `inventory_admin`, `credential_admin`,
+`workflow_admin`, `notification_admin`, `job_template_admin` or
+`execution_environment_admin`) and exactly one target, chosen from
+`organization`, `inventory`, `job_template`, `workflow`, `credential`,
+`project` or `instance_group`. Set the optional `state` of a single grant to
+`absent` to revoke it.
+
+By default the declared `users` list is synchronized with AWX and usernames that
+are no longer listed are removed from the team; set
+`preserve_existing_users: true` to keep them. Set `state: absent` to remove the
+team. `new_name` renames an existing team, and `name`/`organization` are
+required.
+
+AnsibleTeam 会创建一个 AWX team，通过 `spec.roles` 把 AWX 角色（例如某个 job
+template 的 `execute`、某个 inventory 的 `read`）授权给这个 team，然后把
+`spec.users` 中的 `username` 以 team member 的身份加入 team。由于 team 成员会
+自动继承 team 的所有角色，这些用户就通过 team 拿到了对应的权限。
+
+### AnsibleExecutionEnvironment
+
+Create an AWX execution environment with an `AnsibleExecutionEnvironment`
+resource. The execution environment is the container image AWX uses to run
+jobs, and it lives inside an organization, so `name`, `organization` and
+`image` are required.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleExecutionEnvironment
+metadata:
+  name: beer-ee
+spec:
+  connection_secret: awx-access
+  name: beer-ee
+  organization: Default
+  image: quay.io/ansible/awx-ee:latest
+  description: beer execution environment
+  pull: missing
+  state: present
+```
+
+`spec.image` is the full container image reference
+(`registry/namespace/image:tag`) used by AWX when it runs a job. When the image
+comes from a private registry, set `spec.credential` to the name of an AWX
+"Registry" credential that holds the registry credentials.
+
+`spec.pull` controls how the image is pulled and accepts `always`, `missing`
+(default) or `never`. Set `state: absent` to delete the execution environment,
+or `state: exists` to only check that it exists. Optional `runner_image`,
+`runner_version` and `runner_pull_policy` override the runner job image that
+reconciles the resource.
+
+AnsibleExecutionEnvironment 用于在 AWX 中创建 execution environment（即 AWX
+运行 job 时使用的容器镜像），它属于某个 organization，因此 `name`、
+`organization` 和 `image` 是必填字段。私有仓库镜像可以通过 `credential`
+指定一个 AWX "Registry" 类型的凭据；`pull` 支持 `always` / `missing`
+（默认）/ `never`。设置 `state: absent` 即可删除该 execution environment。
 
 ## Contributing
 

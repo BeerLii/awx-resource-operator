@@ -542,6 +542,56 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:text
         - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
+    - description: Grant a user type to an existing user in awx
+      displayName: AWX User
+      kind: AnsibleUser
+      name: ansibleusers.tower.ansible.com
+      specDescriptors:
+      - displayName: Username
+        path: username
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: First Name
+        path: first_name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Last Name
+        path: last_name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Email
+        path: email
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Organization
+        path: organization
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: System Administrator
+        path: is_superuser
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - displayName: System Auditor
+        path: is_system_auditor
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - displayName: Password Secret
+        path: password_secret
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
+      - displayName: User State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:present
+        - urn:alm:descriptor:com.tectonic.ui:select:absent
+        - urn:alm:descriptor:com.tectonic.ui:select:exists
+      - displayName: Authentication Secret
+        path: connection_secret
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1alpha1
     - description: Define a new Inventory in awx
       displayName: AWX Inventory
       kind: AnsibleInventory
@@ -587,6 +637,94 @@ spec:
         path: copy_from
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      version: v1alpha1
+    - description: Create a team in awx, grant roles to the team and add users to it
+      displayName: AWX Team
+      kind: AnsibleTeam
+      name: ansibleteams.tower.ansible.com
+      specDescriptors:
+      - displayName: Team Name
+        path: name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Team New Name
+        path: new_name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Team Organization
+        path: organization
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Team Description
+        path: description
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Team Members
+        path: users
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:yaml
+      - displayName: Team Roles
+        path: roles
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:yaml
+      - displayName: Preserve Existing Members
+        path: preserve_existing_users
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - displayName: Team State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:present
+        - urn:alm:descriptor:com.tectonic.ui:select:absent
+        - urn:alm:descriptor:com.tectonic.ui:select:exists
+      - displayName: Authentication Secret
+        path: connection_secret
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
+      version: v1alpha1
+    - description: Create an execution environment in awx
+      displayName: AWX Execution Environment
+      kind: AnsibleExecutionEnvironment
+      name: ansibleexecutionenvironments.tower.ansible.com
+      specDescriptors:
+      - displayName: Execution Environment Name
+        path: name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Execution Environment Organization
+        path: organization
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Execution Environment Image
+        path: image
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Execution Environment Description
+        path: description
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Registry Credential
+        path: credential
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Image Pull Policy
+        path: pull
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:always
+        - urn:alm:descriptor:com.tectonic.ui:select:missing
+        - urn:alm:descriptor:com.tectonic.ui:select:never
+      - displayName: Execution Environment State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:present
+        - urn:alm:descriptor:com.tectonic.ui:select:absent
+        - urn:alm:descriptor:com.tectonic.ui:select:exists
+      - displayName: Authentication Secret
+        path: connection_secret
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+        - urn:alm:descriptor:io.kubernetes:Secret
       version: v1alpha1
   description: The Ansible Automation Platform Resource Operator manages launching
     Ansible Jobs and Workflows.

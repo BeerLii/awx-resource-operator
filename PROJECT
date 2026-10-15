@@ -87,4 +87,25 @@ resources:
   group: tower
   kind: AnsibleGroup
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: ansible.com
+  group: tower
+  kind: AnsibleUser
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: ansible.com
+  group: tower
+  kind: AnsibleTeam
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: ansible.com
+  group: tower
+  kind: AnsibleExecutionEnvironment
+  version: v1alpha1
 version: "3"

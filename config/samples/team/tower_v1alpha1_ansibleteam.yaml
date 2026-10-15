@@ -1,0 +1,20 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleTeam
+metadata:
+  name: beer-team
+spec:
+  connection_secret: awxaccess
+  name: beer-team
+  organization: Default
+  description: beer team
+  users:
+    - beer-user
+  roles:
+    - role: execute
+      job_template: beer-job-template
+      state: present
+    - role: read
+      inventory: beer-inventory
+      state: present
+  preserve_existing_users: true
+  state: present

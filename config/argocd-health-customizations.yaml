@@ -77,3 +77,105 @@ data:
         hs.status = "Progressing"
         hs.message = message ~= "" and message or "Waiting for AnsibleGroup runner Job"
         return hs
+
+    tower.ansible.com/AnsibleUser:
+      health.lua: |
+        hs = {}
+
+        if obj.status == nil then
+          hs.status = "Progressing"
+          hs.message = "Waiting for AnsibleUser status"
+          return hs
+        end
+
+        local message = obj.status.message or ""
+
+        if obj.status.error == true then
+          hs.status = "Degraded"
+          hs.message = message ~= "" and message or "AnsibleUser runner Job failed"
+          return hs
+        end
+
+        if obj.status.isFinished == true then
+          hs.status = "Healthy"
+          hs.message = message ~= "" and message or "AnsibleUser synchronized successfully"
+          return hs
+        end
+
+        if obj.status.k8sJob ~= nil and obj.status.k8sJob.created == true then
+          hs.status = "Progressing"
+          hs.message = obj.status.k8sJob.message or "AnsibleUser runner Job is running"
+          return hs
+        end
+
+        hs.status = "Progressing"
+        hs.message = message ~= "" and message or "Waiting for AnsibleUser runner Job"
+        return hs
+
+    tower.ansible.com/AnsibleTeam:
+      health.lua: |
+        hs = {}
+
+        if obj.status == nil then
+          hs.status = "Progressing"
+          hs.message = "Waiting for AnsibleTeam status"
+          return hs
+        end
+
+        local message = obj.status.message or ""
+
+        if obj.status.error == true then
+          hs.status = "Degraded"
+          hs.message = message ~= "" and message or "AnsibleTeam runner Job failed"
+          return hs
+        end
+
+        if obj.status.isFinished == true then
+          hs.status = "Healthy"
+          hs.message = message ~= "" and message or "AnsibleTeam synchronized successfully"
+          return hs
+        end
+
+        if obj.status.k8sJob ~= nil and obj.status.k8sJob.created == true then
+          hs.status = "Progressing"
+          hs.message = obj.status.k8sJob.message or "AnsibleTeam runner Job is running"
+          return hs
+        end
+
+        hs.status = "Progressing"
+        hs.message = message ~= "" and message or "Waiting for AnsibleTeam runner Job"
+        return hs
+
+    tower.ansible.com/AnsibleExecutionEnvironment:
+      health.lua: |
+        hs = {}
+
+        if obj.status == nil then
+          hs.status = "Progressing"
+          hs.message = "Waiting for AnsibleExecutionEnvironment status"
+          return hs
+        end
+
+        local message = obj.status.message or ""
+
+        if obj.status.error == true then
+          hs.status = "Degraded"
+          hs.message = message ~= "" and message or "AnsibleExecutionEnvironment runner Job failed"
+          return hs
+        end
+
+        if obj.status.isFinished == true then
+          hs.status = "Healthy"
+          hs.message = message ~= "" and message or "AnsibleExecutionEnvironment synchronized successfully"
+          return hs
+        end
+
+        if obj.status.k8sJob ~= nil and obj.status.k8sJob.created == true then
+          hs.status = "Progressing"
+          hs.message = obj.status.k8sJob.message or "AnsibleExecutionEnvironment runner Job is running"
+          return hs
+        end
+
+        hs.status = "Progressing"
+        hs.message = message ~= "" and message or "Waiting for AnsibleExecutionEnvironment runner Job"
+        return hs

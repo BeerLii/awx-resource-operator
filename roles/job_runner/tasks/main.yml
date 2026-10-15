@@ -43,9 +43,21 @@
   include_tasks: create_group.yml
   when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleGroup'
 
+- name: Manage User
+  include_tasks: create_user.yml
+  when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleUser'
+
+- name: Manage Team
+  include_tasks: create_team.yml
+  when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleTeam'
+
+- name: Manage Execution Environment
+  include_tasks: create_execution_environment.yml
+  when: lookup('env','RUNNER_RESOURCE_KIND') == 'AnsibleExecutionEnvironment'
+
 - name: End runner play after resource operation
   meta: end_play
-  when: lookup('env','RUNNER_RESOURCE_KIND') in ['JobTemplate', 'AnsibleInventory', 'AnsibleHost', 'AnsibleGroup', 'AnsibleCredentialType']
+  when: lookup('env','RUNNER_RESOURCE_KIND') in ['JobTemplate', 'AnsibleInventory', 'AnsibleHost', 'AnsibleGroup', 'AnsibleCredentialType', 'AnsibleUser', 'AnsibleTeam', 'AnsibleExecutionEnvironment']
 
 - name: Read in Environment Variables
   set_fact:

@@ -1,0 +1,105 @@
+---
+- name: Apply NetworkPolicies
+  include_role:
+    name: networkpolicy
+
+- name: Read AnsibleExecutionEnvironment info
+  kubernetes.core.k8s_info:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleExecutionEnvironment
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: resource_info
+
+- name: Set resource generation
+  set_fact:
+    _resource_generation: "{{ resource_info.resources[0].metadata.generation | default(1) }}"
+
+- name: Check existing runner job
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: k8s_job
+
+- name: End play when the current generation has already finished
+  meta: end_play
+  when:
+    - state | default('present') != 'absent'
+    - resource_info.resources[0].status.isFinished | default(false) | bool
+    - resource_info.resources[0].status.observedGeneration | default(-1) | int == resource_info.resources[0].metadata.generation | int
+    - (not (resource_info.resources[0].status.error | default(false) | bool) or
+       resource_info.resources[0].status.retryCount | default(0) | int >= max_retries | int)
+
+- name: Remove stale runner job before processing a changed or deleted resource
+  kubernetes.core.k8s:
+    state: absent
+    api_version: batch/v1
+    kind: Job
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  when:
+    - k8s_job.resources | length > 0
+    - (state | default('present') == 'absent') or
+      ((resource_info.resources[0].status.observedGeneration | default(-1) | int != resource_info.resources[0].metadata.generation | int and
+        (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+         k8s_job.resources[0].status.failed | default(0) | int > 0)) or
+       (resource_info.resources[0].status.error | default(false) | bool and
+        resource_info.resources[0].status.retryCount | default(0) | int < max_retries | int and
+        k8s_job.resources[0].status.failed | default(0) | int > 0))
+
+- name: End play when a runner job is already active
+  meta: end_play
+  when:
+    - k8s_job.resources | length > 0
+    - state | default('present') != 'absent'
+    - not (k8s_job.resources[0].status.succeeded | default(0) | int > 0)
+    - not (k8s_job.resources[0].status.failed | default(0) | int > 0)
+
+- name: Set runner image
+  set_fact:
+    _runner_image: "{{ (runner_image + ':' + runner_version) if runner_image is defined and runner_version is defined else lookup('env', 'RELATED_IMAGE_ANSIBLE_JOB_RUNNER_IMAGE') }}"
+    _runner_pull_policy: "{{ runner_pull_policy | default('IfNotPresent') }}"
+
+- name: Create runner service account and job
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', item) }}"
+  loop:
+    - service_account.yml.j2
+    - job_definition.yml.j2
+
+- name: Wait for AWX deletion runner to finish
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: deletion_job
+  until: >-
+    deletion_job.resources | length > 0 and
+    (deletion_job.resources[0].status.succeeded | default(0) | int == 1 or
+     deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1)
+  retries: 60
+  delay: 2
+  when: state | default('present') == 'absent'
+
+- name: Fail finalization when AWX deletion runner failed
+  ansible.builtin.fail:
+    msg: "AWX {{ kind }} deletion runner job failed. Inspect job/{{ ansible_operator_meta.name }} logs."
+  when:
+    - state | default('present') == 'absent'
+    - deletion_job.resources[0].status.failed | default(0) | int >= backoff_limit | int + 1
+
+- name: Update AnsibleExecutionEnvironment status with runner job info
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleExecutionEnvironment
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+    status:
+      k8sJob:
+        created: true
+        namespacedName: "{{ ansible_operator_meta.namespace + '/' + ansible_operator_meta.name }}"
+        message: "AWX execution environment operation submitted to the job runner"

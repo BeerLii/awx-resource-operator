@@ -1,0 +1,85 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ansibleexecutionenvironments.tower.ansible.com
+spec:
+  group: tower.ansible.com
+  names:
+    kind: AnsibleExecutionEnvironment
+    listKind: AnsibleExecutionEnvironmentList
+    plural: ansibleexecutionenvironments
+    singular: ansibleexecutionenvironment
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ExecutionEnvironment is the Schema for the AWX execution environments API
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            description: Spec defines the desired state of an AWX execution environment
+            required:
+            - name
+            - organization
+            - image
+            - connection_secret
+            properties:
+              name:
+                type: string
+                description: The name of the execution environment
+              description:
+                type: string
+                description: The description for the execution environment
+              organization:
+                type: string
+                description: Organization name, ID, or named URL the execution environment belongs to
+              image:
+                type: string
+                description: Container image (registry/image:tag) used as the execution environment
+              credential:
+                type: string
+                description: >-
+                  Optional registry credential name, ID, or named URL used to pull the
+                  container image. Must be a "Registry" credential in AWX.
+              pull:
+                type: string
+                default: missing
+                enum: ["always", "missing", "never"]
+                description: >-
+                  Controls how the execution environment image is pulled: always,
+                  missing (default) or never.
+              state:
+                type: string
+                default: present
+                enum: ["present", "absent", "exists"]
+                description: Desired state of the resource
+              connection_secret:
+                type: string
+                description: Kubernetes Secret containing the AWX host and token
+              runner_image:
+                type: string
+                description: Runner image used when running the reconciliation job
+              runner_version:
+                type: string
+                description: Runner image version used when running the reconciliation job
+              runner_pull_policy:
+                type: string
+                description: Runner image pull policy used when running the reconciliation job
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            description: Status defines the observed state of AnsibleExecutionEnvironment
+            x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}

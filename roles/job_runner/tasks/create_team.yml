@@ -1,0 +1,121 @@
+---
+- name: Read team runner arguments
+  set_fact:
+    _name: "{{ lookup('env','TEAM_NAME') }}"
+    _new_name: "{{ lookup('env','TEAM_NEW_NAME') | default('', true) }}"
+    _organization: "{{ lookup('env','TEAM_ORGANIZATION') }}"
+    _description: "{{ lookup('env','TEAM_DESCRIPTION') | default('', true) }}"
+    _state: "{{ lookup('env','STATE') | default('present', true) }}"
+    _users: "{{ lookup('env','USERS') | default('[]', true) | from_json }}"
+    _team_roles: "{{ lookup('env','TEAM_ROLES') | default('[]', true) | from_json }}"
+    _preserve_existing_users: "{{ lookup('env','PRESERVE_EXISTING_USERS') | default('false', true) | bool }}"
+
+- name: Manage AWX team
+  block:
+    - name: Create or update AWX team
+      awx.awx.team:
+        name: "{{ _name }}"
+        new_name: "{{ _new_name if _new_name | length > 0 else omit }}"
+        description: "{{ _description if _description | length > 0 else omit }}"
+        organization: "{{ _organization }}"
+        state: "{{ _state }}"
+      register: resource_result
+
+    - name: Set effective team name and id
+      set_fact:
+        _team_name: "{{ resource_result.name | default(_name) }}"
+        _team_id: "{{ resource_result.id | default(0) }}"
+
+    - name: Grant AWX roles to the team
+      awx.awx.role:
+        role: "{{ item.role }}"
+        teams:
+          - "{{ _team_name }}"
+        organizations: "{{ [item.organization] if item.organization is defined else omit }}"
+        inventories: "{{ [item.inventory] if item.inventory is defined else omit }}"
+        job_templates: "{{ [item.job_template] if item.job_template is defined else omit }}"
+        workflows: "{{ [item.workflow] if item.workflow is defined else omit }}"
+        credentials: "{{ [item.credential] if item.credential is defined else omit }}"
+        projects: "{{ [item.project] if item.project is defined else omit }}"
+        instance_groups: "{{ [item.instance_group] if item.instance_group is defined else omit }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ _team_roles }}"
+      loop_control:
+        label: "{{ item.role }}"
+      register: team_role_result
+      when: _state == 'present'
+
+    # Members of a team implicitly inherit every role granted to that team,
+    # so adding a user to the team member role is enough to pass the
+    # permissions on to the username.
+    - name: Add the declared usernames to the team
+      awx.awx.role:
+        role: member
+        target_teams:
+          - "{{ _team_name }}"
+        users: "{{ _users }}"
+        state: present
+      register: team_member_result
+      when:
+        - _state == 'present'
+        - _users | length > 0
+
+    - name: Read the usernames that are currently members of the team
+      set_fact:
+        _current_members: "{{ lookup('awx.awx.controller_api', '/teams/' + (_team_id | string) + '/users/', return_all=True) | map(attribute='username') | list }}"
+      when:
+        - _state == 'present'
+        - not _preserve_existing_users
+
+    - name: Remove usernames that are no longer declared on the team
+      awx.awx.role:
+        role: member
+        target_teams:
+          - "{{ _team_name }}"
+        users: "{{ _current_members | difference(_users) }}"
+        state: absent
+      register: team_member_removal_result
+      when:
+        - _state == 'present'
+        - not _preserve_existing_users
+        - _current_members is defined
+        - _current_members | difference(_users) | length > 0
+
+    - name: Compute the overall team change status
+      set_fact:
+        _team_changed: "{{ (resource_result.changed | default(false)) or
+          (team_role_result.changed | default(false)) or
+          (team_member_result.changed | default(false)) or
+          (team_member_removal_result.changed | default(false)) }}"
+  rescue:
+    - name: Update team status after runner failure
+      operator_sdk.util.k8s_status:
+        api_version: tower.ansible.com/v1alpha1
+        kind: AnsibleTeam
+        name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+        namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+        status:
+          isFinished: true
+          error: true
+          observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+          retryCount: "{{ lookup('env','RUNNER_RETRY_COUNT') | default('1', true) | int }}"
+          message: "AWX team operation failed in the job runner: {{ ansible_failed_result.msg | default('unknown error') }}"
+    - name: Stop team runner after failure
+      meta: end_play
+
+- name: Update team status
+  operator_sdk.util.k8s_status:
+    api_version: tower.ansible.com/v1alpha1
+    kind: AnsibleTeam
+    name: "{{ lookup('env','RUNNER_RESOURCE_NAME') }}"
+    namespace: "{{ lookup('env','RUNNER_RESOURCE_NAMESPACE') }}"
+    status:
+      isFinished: true
+      error: false
+      retryCount: 0
+      observedGeneration: "{{ lookup('env','RUNNER_RESOURCE_GENERATION') | default('0', true) | int }}"
+      message: "AWX team managed by the job runner"
+      teamResult:
+        changed: "{{ _team_changed }}"
+        users: "{{ _users }}"
+        roles: "{{ _team_roles | map(attribute='role') | list }}"

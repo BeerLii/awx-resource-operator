@@ -1,0 +1,12 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleExecutionEnvironment
+metadata:
+  name: beer-ee
+spec:
+  connection_secret: awxaccess
+  name: beer-ee
+  organization: Default
+  image: quay.io/ansible/awx-ee:latest
+  description: beer execution environment
+  pull: missing
+  state: present

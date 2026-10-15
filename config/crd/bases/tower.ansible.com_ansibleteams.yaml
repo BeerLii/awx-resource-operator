@@ -1,0 +1,114 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ansibleteams.tower.ansible.com
+spec:
+  group: tower.ansible.com
+  names:
+    kind: AnsibleTeam
+    listKind: AnsibleTeamList
+    plural: ansibleteams
+    singular: ansibleteam
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Team is the Schema for the AWX teams API
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            description: Spec defines the desired state of an AWX team
+            required:
+            - name
+            - organization
+            - connection_secret
+            properties:
+              name:
+                type: string
+                description: The name of the team
+              new_name:
+                type: string
+                description: Optional new name, used to rename an existing team
+              description:
+                type: string
+                description: The description for the team
+              organization:
+                type: string
+                description: Organization name, ID, or named URL the team belongs to
+              users:
+                type: array
+                description: >-
+                  AWX usernames added to the team. Team members implicitly inherit
+                  every role granted to the team.
+                items:
+                  type: string
+              roles:
+                type: array
+                description: >-
+                  AWX roles granted to the team. Each entry names a role and exactly
+                  one AWX resource the role acts on.
+                items:
+                  type: object
+                  required:
+                  - role
+                  properties:
+                    role:
+                      type: string
+                      enum: ["admin", "read", "member", "execute", "adhoc", "update", "use", "approval", "auditor", "project_admin", "inventory_admin", "credential_admin", "workflow_admin", "notification_admin", "job_template_admin", "execution_environment_admin"]
+                      description: The AWX role type to grant to the team
+                    state:
+                      type: string
+                      default: present
+                      enum: ["present", "absent"]
+                      description: Desired state of the role assignment
+                    organization:
+                      type: string
+                      description: Organization name, ID, or named URL the role acts on
+                    inventory:
+                      type: string
+                      description: Inventory name, ID, or named URL the role acts on
+                    job_template:
+                      type: string
+                      description: Job template name, ID, or named URL the role acts on
+                    workflow:
+                      type: string
+                      description: Workflow job template name, ID, or named URL the role acts on
+                    credential:
+                      type: string
+                      description: Credential name, ID, or named URL the role acts on
+                    project:
+                      type: string
+                      description: Project name, ID, or named URL the role acts on
+                    instance_group:
+                      type: string
+                      description: Instance group name, ID, or named URL the role acts on
+              preserve_existing_users:
+                type: boolean
+                default: false
+                description: Preserve team members that are not listed in the resource
+              state:
+                type: string
+                default: present
+                enum: ["present", "absent", "exists"]
+                description: Desired state of the resource
+              connection_secret:
+                type: string
+                description: Kubernetes Secret containing the AWX host and token
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            description: Status defines the observed state of AnsibleTeam
+            x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}

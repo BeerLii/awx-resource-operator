@@ -81,4 +81,28 @@
     name: finalizer.tower.ansible.com
     vars:
       state: absent
+- version: v1alpha1
+  group: tower.ansible.com
+  kind: AnsibleUser
+  role: user
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
+- version: v1alpha1
+  group: tower.ansible.com
+  kind: AnsibleTeam
+  role: team
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
+- version: v1alpha1
+  group: tower.ansible.com
+  kind: AnsibleExecutionEnvironment
+  role: executionenvironment
+  finalizer:
+    name: finalizer.tower.ansible.com
+    vars:
+      state: absent
 #+kubebuilder:scaffold:watch
