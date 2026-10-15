@@ -7,8 +7,16 @@
     _email: "{{ lookup('env','EMAIL') | default('', true) }}"
     _organization: "{{ lookup('env','ORGANIZATION') | default('', true) }}"
     _password: "{{ lookup('env','PASSWORD') | default('', true) }}"
-    _is_superuser: "{{ lookup('env','IS_SUPERUSER') | default('', true) }}"
-    _is_system_auditor: "{{ lookup('env','IS_SYSTEM_AUDITOR') | default('', true) }}"
+    # IS_SUPERUSER / IS_SYSTEM_AUDITOR are only exported by the operator role when
+    # the CR sets them. Those CRD fields are booleans, so the env value is the
+    # literal "True"/"False" and Ansible turns a fact that renders to exactly
+    # "True"/"False" into a Python bool. Cast them explicitly with | bool, and keep a
+    # separate "<name>_set" flag for the "was it provided?" check: a bool has no
+    # length, so calling | length on it fails templating.
+    _is_superuser: "{{ lookup('env','IS_SUPERUSER') | default('', true) | bool }}"
+    _is_superuser_set: "{{ lookup('env','IS_SUPERUSER') | default('', true) | string | length > 0 }}"
+    _is_system_auditor: "{{ lookup('env','IS_SYSTEM_AUDITOR') | default('', true) | bool }}"
+    _is_system_auditor_set: "{{ lookup('env','IS_SYSTEM_AUDITOR') | default('', true) | string | length > 0 }}"
     _state: "{{ lookup('env','STATE') | default('present', true) }}"
 
 - name: Manage AWX user
@@ -23,8 +31,8 @@
         password: "{{ _password if _password | length > 0 else omit }}"
         # Only sent when the resource sets them, so the runner never changes the
         # user type of an existing AWX user by accident.
-        is_superuser: "{{ _is_superuser | bool if _is_superuser | length > 0 else omit }}"
-        is_system_auditor: "{{ _is_system_auditor | bool if _is_system_auditor | length > 0 else omit }}"
+        is_superuser: "{{ _is_superuser | bool if _is_superuser_set else omit }}"
+        is_system_auditor: "{{ _is_system_auditor | bool if _is_system_auditor_set else omit }}"
         state: "{{ _state }}"
       register: resource_result
   rescue:
