@@ -18,9 +18,14 @@
 # referencing host records that already exist in AWX.
 - name: Calculate host names managed by this group
   set_fact:
-    _managed_host_names: "{{ _managed_hosts | map(attribute='name') | list }}"
-    _all_hosts: "{{ (_hosts + _managed_host_names) | unique }}"
+    _managed_host_names: "{{ _managed_hosts | selectattr('name', 'defined') | map(attribute='name') | list }}"
     _managed_host_results: []
+
+# set_fact templates all values before setting any of them, so _all_hosts cannot
+# reference _managed_host_names in the same task.
+- name: Merge declared and managed host names
+  set_fact:
+    _all_hosts: "{{ (_hosts + _managed_host_names) | unique }}"
 
 - name: Manage AWX host group
   block:
