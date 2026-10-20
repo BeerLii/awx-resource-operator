@@ -32,7 +32,7 @@
     - (not (resource_info.resources[0].status.error | default(false) | bool) or
        resource_info.resources[0].status.retryCount | default(0) | int >= max_retries | int)
 
-- name: Remove stale runner job before processing a changed or deleted resource
+- name: Remove stale runner job before processing a changed, deleted, or SSO-waiting resource
   kubernetes.core.k8s:
     state: absent
     api_version: batch/v1
@@ -47,7 +47,29 @@
          k8s_job.resources[0].status.failed | default(0) | int > 0)) or
        (resource_info.resources[0].status.error | default(false) | bool and
         resource_info.resources[0].status.retryCount | default(0) | int < max_retries | int and
-        k8s_job.resources[0].status.failed | default(0) | int > 0))
+        k8s_job.resources[0].status.failed | default(0) | int > 0) or
+       (resource_info.resources[0].status.waitingForSSO | default(false) | bool and
+        (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+         k8s_job.resources[0].status.failed | default(0) | int > 0)))
+
+# The waiting runner exits successfully after recording waitingForSSO. On the
+# next periodic reconcile the old Job must be removed before the same name can
+# be used for a new runner Job (Job pod-template fields are immutable).
+- name: Wait for the SSO-waiting runner Job to be removed
+  kubernetes.core.k8s_info:
+    kind: Job
+    api_version: batch/v1
+    name: "{{ ansible_operator_meta.name }}"
+    namespace: "{{ ansible_operator_meta.namespace }}"
+  register: previous_runner_job
+  until: previous_runner_job.resources | length == 0
+  retries: 30
+  delay: 1
+  when:
+    - resource_info.resources[0].status.waitingForSSO | default(false) | bool
+    - k8s_job.resources | length > 0
+    - (k8s_job.resources[0].status.succeeded | default(0) | int > 0 or
+       k8s_job.resources[0].status.failed | default(0) | int > 0)
 
 - name: End play when a runner job is already active
   meta: end_play

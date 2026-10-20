@@ -96,6 +96,12 @@ data:
           return hs
         end
 
+        if obj.status.waitingForSSO == true then
+          hs.status = "Progressing"
+          hs.message = message ~= "" and message or "Waiting for SSO login to provision the AWX user"
+          return hs
+        end
+
         if obj.status.isFinished == true then
           hs.status = "Healthy"
           hs.message = message ~= "" and message or "AnsibleUser synchronized successfully"

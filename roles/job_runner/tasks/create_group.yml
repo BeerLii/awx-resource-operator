@@ -7,19 +7,49 @@
     _state: "{{ lookup('env','STATE') | default('present', true) }}"
     _variables: "{{ lookup('env','VARIABLES') | default('{}', true) | from_json }}"
     _hosts: "{{ lookup('env','HOSTS') | default('[]', true) | from_json }}"
+    _managed_hosts: "{{ lookup('env','MANAGED_HOSTS') | default('[]', true) | from_json }}"
     _children: "{{ lookup('env','CHILDREN') | default('[]', true) | from_json }}"
     _preserve_existing_hosts: "{{ lookup('env','PRESERVE_EXISTING_HOSTS') | default('false', true) | bool }}"
     _preserve_existing_children: "{{ lookup('env','PRESERVE_EXISTING_CHILDREN') | default('false', true) | bool }}"
 
+# Hosts listed in managed_hosts are owned by this resource: they are created or
+# updated in the inventory first and then associated with the group, so they do
+# not need to be repeated in spec.hosts. spec.hosts stays available for
+# referencing host records that already exist in AWX.
+- name: Calculate host names managed by this group
+  set_fact:
+    _managed_host_names: "{{ _managed_hosts | map(attribute='name') | list }}"
+    _all_hosts: "{{ (_hosts + _managed_host_names) | unique }}"
+    _managed_host_results: []
+
 - name: Manage AWX host group
   block:
+    - name: Create or update AWX hosts managed by this group
+      awx.awx.host:
+        name: "{{ item.name }}"
+        inventory: "{{ _inventory }}"
+        description: "{{ item.description | default('', true) if item.description | default('', true) | length > 0 else omit }}"
+        enabled: "{{ item.enabled | default(true) | bool }}"
+        variables: "{{ item.variables | default({}, true) if item.variables | default({}, true) | length > 0 else omit }}"
+        state: present
+      loop: "{{ _managed_hosts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: _state != 'absent'
+      register: managed_host_results
+
+    - name: Remember managed host results
+      set_fact:
+        _managed_host_results: "{{ managed_host_results.results | default([]) }}"
+      when: _state != 'absent'
+
     - name: Create or update AWX host group
       awx.awx.group:
         name: "{{ _name }}"
         inventory: "{{ _inventory }}"
         description: "{{ _description if _description | length > 0 else omit }}"
         variables: "{{ _variables if _variables | length > 0 else omit }}"
-        hosts: "{{ _hosts if _hosts | length > 0 else omit }}"
+        hosts: "{{ _all_hosts if _all_hosts | length > 0 else omit }}"
         children: "{{ _children if _children | length > 0 else omit }}"
         preserve_existing_hosts: "{{ _preserve_existing_hosts }}"
         preserve_existing_children: "{{ _preserve_existing_children }}"
@@ -55,3 +85,5 @@
       message: "AWX host group managed by the job runner"
       groupResult:
         changed: "{{ resource_result.changed }}"
+        managedHosts: "{{ _managed_host_results | length }}"
+        managedHostNames: "{{ _managed_host_names }}"

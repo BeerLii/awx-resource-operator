@@ -50,6 +50,33 @@ spec:
                 description: Host names, IDs, or named URLs to associate with the group
                 items:
                   type: string
+              managed_hosts:
+                type: array
+                description: >-
+                  Hosts to create or update in the group's inventory and
+                  associate with the group. The host names are added to the
+                  group automatically, so they do not need to be repeated in
+                  spec.hosts.
+                items:
+                  type: object
+                  required:
+                  - name
+                  properties:
+                    name:
+                      type: string
+                      description: The name of the host
+                    description:
+                      type: string
+                      description: The description for the host
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: Whether the host is enabled in AWX
+                    variables:
+                      type: object
+                      description: Host variables, for example ansible_host and ansible_user
+                      additionalProperties:
+                        x-kubernetes-preserve-unknown-fields: true
               children:
                 type: array
                 description: Child group names, IDs, or named URLs to associate with the group

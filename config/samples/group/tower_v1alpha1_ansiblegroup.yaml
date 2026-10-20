@@ -1,15 +1,32 @@
+---
 apiVersion: tower.ansible.com/v1alpha1
 kind: AnsibleGroup
 metadata:
   name: beer-test
 spec:
-  connection_secret: awxaccess
+  connection_secret: awx-access
   name: beer-test
   inventory: beer-inventory
   description: beer test host group
   state: present
-  hosts:
-    - beer-host-1
+  # Hosts declared here are created or updated in the inventory and then
+  # associated with this group automatically.
+  managed_hosts:
+    - name: beer-host-1
+      description: beer host 1
+      enabled: true
+      variables:
+        ansible_host: 10.0.0.11
+        ansible_user: ansible
+    - name: beer-host-2
+      description: beer host 2
+      enabled: true
+      variables:
+        ansible_host: 10.0.0.12
+        ansible_user: ansible
+  # Existing hosts that are not managed by this resource can still be
+  # referenced here.
+  hosts: []
   children: []
   preserve_existing_hosts: true
   preserve_existing_children: true

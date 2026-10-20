@@ -260,9 +260,11 @@ spec:
 
 ### AnsibleGroup
 
-Create a host group in an existing AWX inventory with an `AnsibleGroup` resource. The
-inventory and any hosts or child groups referenced by `hosts` and `children` must
-already exist in AWX.
+Create a host group and its hosts in an existing AWX inventory with a single
+`AnsibleGroup` resource. Hosts declared under `managed_hosts` are created or
+updated in the inventory first and then associated with the group
+automatically, so no separate `AnsibleHost` resource is needed. The inventory
+itself must already exist in AWX.
 
 ```
 ---
@@ -276,16 +278,33 @@ spec:
   inventory: beer-inventory
   description: beer test host group
   state: present
-  hosts:
-    - beer-host-1
+  managed_hosts:
+    - name: beer-host-1
+      description: beer host 1
+      enabled: true
+      variables:
+        ansible_host: 10.0.0.11
+        ansible_user: ansible
+    - name: beer-host-2
+      description: beer host 2
+      enabled: true
+      variables:
+        ansible_host: 10.0.0.12
+        ansible_user: ansible
+  # Optional: reference hosts that already exist in AWX and are not managed
+  # by this resource.
+  hosts: []
   children: []
   preserve_existing_hosts: true
   preserve_existing_children: true
 ```
 
-Set `state: absent` to remove the group. By default, the declared `hosts` and
-`children` are synchronized; set the corresponding `preserve_existing_*` option
-to `true` to retain existing AWX relationships not listed in the resource.
+Set `state: absent` to remove the group. Managed hosts are left in the
+inventory on deletion, because the same host can belong to several groups.
+`hosts` and `children` may still be used to reference existing AWX objects; by
+default the declared associations are synchronized, and the corresponding
+`preserve_existing_*` option keeps existing relationships that are not listed
+in the resource.
 
 
 ### AnsibleUser
@@ -318,6 +337,15 @@ the resource) containing a `password` key, the user is created in AWX if it does
 not exist yet and the password is applied; without it, the user must already
 exist in AWX.
 
+When the user does not exist yet and no `password_secret` is given, the operator
+does not create the account. It records `status.waitingForSSO: true` and stops
+the runner, because AWX accounts are normally provisioned by the SSO login. The
+`AnsibleUser` watch has `reconcilePeriod: 1m` in `watches.yaml`, so the resource
+is re-reconciled periodically and `is_superuser` / `is_system_auditor` are
+applied automatically as soon as the account shows up after the first login. A
+single CR can override the interval with the
+`ansible.sdk.operatorframework.io/reconcile-period` annotation.
+
 Deleting the `AnsibleUser` resource (or setting `state: absent`) does **not**
 delete the AWX user. It only revokes the System Administrator / System Auditor
 user types and keeps the user as a normal user, because the AWX account is
@@ -331,6 +359,13 @@ AnsibleUser 通过 `spec.username` 指定要管理的 AWX 用户，并使用 `is
 / `is_system_auditor` 授予 System Administrator / System Auditor 用户类型权限。
 只有在资源中显式声明这两个字段时才会下发到 AWX，因此不会意外修改已有用户的
 用户类型；将它们设为 `false` 即可撤销对应权限。
+
+当 AWX 中还没有该用户、且未提供 `password_secret` 时，operator 不会创建用户，
+而是写入 `status.waitingForSSO: true` 并结束本次 runner。因为 AWX 账号通常由
+SSO 首次登录时自动创建。`AnsibleUser` 的 watch 配置了 `reconcilePeriod: 1m`
+（见 `watches.yaml`），所以资源会被周期性重新 reconcile，用户首次登录出现后
+`is_superuser` / `is_system_auditor` 会自动下发。单个 CR 也可以用
+`ansible.sdk.operatorframework.io/reconcile-period` 注解覆盖该周期。
 
 删除 `AnsibleUser` 资源（或设置 `state: absent`）**不会删除** AWX 用户，只会撤销
 System Administrator / System Auditor 用户类型，并把用户保留为 normal user。

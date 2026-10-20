@@ -52,6 +52,8 @@ spec:
               value: '{{ variables | default({}) | to_json | replace("'", "''") }}'
             - name: HOSTS
               value: '{{ hosts | default([]) | to_json | replace("'", "''") }}'
+            - name: MANAGED_HOSTS
+              value: '{{ managed_hosts | default([]) | to_json | replace("'", "''") }}'
             - name: CHILDREN
               value: '{{ children | default([]) | to_json | replace("'", "''") }}'
             - name: PRESERVE_EXISTING_HOSTS

@@ -526,6 +526,10 @@ spec:
         path: hosts
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Managed Hosts
+        path: managed_hosts
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       - displayName: Child Groups
         path: children
         x-descriptors:

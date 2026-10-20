@@ -85,6 +85,9 @@
   group: tower.ansible.com
   kind: AnsibleUser
   role: user
+  # The AWX account is provisioned by an SSO login outside Kubernetes. Reconcile
+  # periodically so permissions are applied after that account appears.
+  reconcilePeriod: 1m
   finalizer:
     name: finalizer.tower.ansible.com
     vars:

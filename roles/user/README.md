@@ -27,3 +27,13 @@ Role Variables
 
 `is_superuser` and `is_system_auditor` are only sent to AWX when they are set in
 the resource, so the operator never demotes an existing user type by accident.
+
+
+SSO-provisioned users
+---------------------
+
+When the AWX user does not exist yet and no `password_secret` is supplied, the
+operator records `status.waitingForSSO: true` and waits for the user to log in
+through SSO. The `AnsibleUser` watch reconciles every minute, then applies
+`is_superuser` and `is_system_auditor` automatically after AWX creates the
+account.
