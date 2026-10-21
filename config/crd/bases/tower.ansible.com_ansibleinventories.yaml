@@ -93,6 +93,109 @@ spec:
                     preserve_existing_children:
                       type: boolean
                       default: false
+              sources:
+                type: array
+                description: Inventory sources that populate hosts and groups from a project, SCM repository, or cloud provider
+                items:
+                  type: object
+                  required:
+                  - name
+                  - source
+                  properties:
+                    name:
+                      type: string
+                      description: Inventory source name
+                    description:
+                      type: string
+                    source:
+                      type: string
+                      enum: ["scm", "ec2", "gce", "azure_rm", "vmware", "satellite6", "openstack", "rhv", "controller", "insights"]
+                      description: Source type. Use scm for Source from a Project. Other values are passed through to the awx.awx.inventory_source module.
+                    organization:
+                      type: string
+                      description: Organization name, ID, or named URL. Defaults to the inventory organization
+                    credential:
+                      type: string
+                      description: Credential name, ID, or named URL used to access the source
+                    source_project:
+                      type: string
+                      description: Project name, ID, or named URL to read the inventory from. Required when source is scm
+                    source_path:
+                      type: string
+                      description: Path of the inventory file or directory inside the project. Defaults to the project inventory file
+                    source_vars:
+                      type: object
+                      description: Variables passed to the inventory source plugin
+                      additionalProperties:
+                        x-kubernetes-preserve-unknown-fields: true
+                    scm_branch:
+                      type: string
+                      description: Branch, tag, or commit to use for an scm source
+                    enabled_var:
+                      type: string
+                      description: Host variable used to determine whether a host is enabled
+                    enabled_value:
+                      type: string
+                      description: Value of enabled_var that marks a host as enabled
+                    host_filter:
+                      type: string
+                      description: Regex applied to host names when importing
+                    limit:
+                      type: string
+                      description: Limit hosts imported from the source
+                    overwrite:
+                      type: boolean
+                      description: Remove hosts and groups that are no longer present in the source
+                    overwrite_vars:
+                      type: boolean
+                      description: Overwrite host and group variables with values from the source
+                    update_on_launch:
+                      type: boolean
+                      description: Update the source before each job that uses the inventory
+                    update_cache_timeout:
+                      type: integer
+                      description: Cache timeout in seconds. 0 disables caching
+                    verbosity:
+                      type: integer
+                      minimum: 0
+                      maximum: 2
+                      description: Verbosity level of the source update, 0 to 2
+                    execution_environment:
+                      type: string
+                      description: Execution environment name, ID, or named URL used for source updates
+                    notification_templates_started:
+                      type: array
+                      items:
+                        type: string
+                    notification_templates_success:
+                      type: array
+                      items:
+                        type: string
+                    notification_templates_error:
+                      type: array
+                      items:
+                        type: string
+                    state:
+                      type: string
+                      default: present
+                      enum: ["present", "absent"]
+                      description: Desired state of the inventory source. The AWX inventory_source module supports present and absent only.
+                    update:
+                      type: boolean
+                      default: true
+                      description: Trigger a source sync after the source is created or updated
+                    wait:
+                      type: boolean
+                      default: true
+                      description: Wait for the triggered sync to finish
+                    interval:
+                      type: integer
+                      default: 5
+                      description: Seconds between sync status polls when wait is true
+                    timeout:
+                      type: integer
+                      default: 600
+                      description: Maximum seconds to wait for the triggered sync
               connection_secret:
                 type: string
                 description: |

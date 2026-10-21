@@ -48,6 +48,10 @@ spec:
 {% endif %}
             - name: SCM_TYPE
               value: "{{ scm_type }}"
+{% if _default_environment | default('') != '' %}
+            - name: DEFAULT_ENVIRONMENT
+              value: "{{ _default_environment }}"
+{% endif %}
 {% if scm_credential is defined and scm_credential != "" %}
             - name: SCM_CREDENTIAL
               value: "{{ scm_credential }}"

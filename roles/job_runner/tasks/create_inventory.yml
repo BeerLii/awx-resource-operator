@@ -9,10 +9,15 @@
     _instance_groups: "{{ lookup('env','INSTANCE_GROUPS') | default('[]', true) | from_json }}"
     _variables: "{{ lookup('env','VARIABLES') | default('{}', true) | from_json }}"
     _groups_raw: "{{ lookup('env','GROUPS') | default('[]', true) | from_json }}"
+    _sources_raw: "{{ lookup('env','SOURCES') | default('[]', true) | from_json }}"
 
 - name: Normalize inventory host groups to a list
   set_fact:
     _groups: "{{ [_groups_raw] if _groups_raw is mapping else _groups_raw }}"
+
+- name: Normalize inventory sources to a list
+  set_fact:
+    _sources: "{{ [_sources_raw] if _sources_raw is mapping else _sources_raw }}"
 
 - name: Manage AWX inventory and host groups
   block:
@@ -43,6 +48,55 @@
         label: "{{ item.name }}"
       when: _state == 'present'
       register: group_results
+
+    - name: Manage inventory sources
+      awx.awx.inventory_source:
+        name: "{{ item.name }}"
+        description: "{{ item.description | default(omit, true) }}"
+        organization: "{{ item.organization | default(_organization, true) }}"
+        inventory: "{{ _name }}"
+        source: "{{ item.source }}"
+        credential: "{{ item.credential | default(omit, true) }}"
+        source_project: "{{ item.source_project | default(omit, true) }}"
+        source_path: "{{ item.source_path | default(omit, true) }}"
+        source_vars: "{{ item.source_vars | default(omit) }}"
+        scm_branch: "{{ item.scm_branch | default(omit, true) }}"
+        enabled_var: "{{ item.enabled_var | default(omit, true) }}"
+        enabled_value: "{{ item.enabled_value | default(omit, true) }}"
+        host_filter: "{{ item.host_filter | default(omit, true) }}"
+        limit: "{{ item.limit | default(omit, true) }}"
+        overwrite: "{{ item.overwrite | default(omit) }}"
+        overwrite_vars: "{{ item.overwrite_vars | default(omit) }}"
+        update_on_launch: "{{ item.update_on_launch | default(omit) }}"
+        update_cache_timeout: "{{ item.update_cache_timeout | default(omit) }}"
+        verbosity: "{{ item.verbosity | default(omit) }}"
+        execution_environment: "{{ item.execution_environment | default(omit, true) }}"
+        notification_templates_started: "{{ item.notification_templates_started | default(omit) }}"
+        notification_templates_success: "{{ item.notification_templates_success | default(omit) }}"
+        notification_templates_error: "{{ item.notification_templates_error | default(omit) }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ _sources }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: _state == 'present'
+      register: source_results
+
+    - name: Sync inventory sources
+      awx.awx.inventory_source_update:
+        name: "{{ item.item.name }}"
+        organization: "{{ item.item.organization | default(_organization, true) }}"
+        inventory: "{{ _name }}"
+        wait: "{{ item.item.wait | default(true) | bool }}"
+        interval: "{{ item.item.interval | default(5) }}"
+        timeout: "{{ item.item.timeout | default(600) }}"
+      loop: "{{ source_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when:
+        - not item.skipped | default(false)
+        - item.item.state | default('present') == 'present'
+        - item.item.update | default(true) | bool
+      register: source_update_results
   rescue:
     - name: Update inventory status after runner failure
       operator_sdk.util.k8s_status:
@@ -70,4 +124,6 @@
       message: "AWX inventory managed by the job runner"
       inventoryResult:
         changed: "{{ resource_result.changed }}"
-        groups: "{{ group_results.results | default([]) | length }}"
+        groups: "{{ (group_results | default({})).results | default([]) | length }}"
+        sources: "{{ (source_results | default({})).results | default([]) | rejectattr('skipped', 'defined') | list | length }}"
+        sourceUpdates: "{{ (source_update_results | default({})).results | default([]) | rejectattr('skipped', 'defined') | list | length }}"

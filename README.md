@@ -21,6 +21,7 @@ An operator that can be used along side [Ansible AWX](https://github.com/ansible
     - [AnsibleJob](#ansiblejob)
       - [Launching Workflows](#launching-workflows)
     - [JobTemplate](#jobtemplate)
+    - [AnsibleProject](#ansibleproject)
     - [AnsibleInventory](#ansibleinventory)
     - [AnsibleHost](#ansiblehost)
     - [AnsibleGroup](#ansiblegroup)
@@ -199,6 +200,36 @@ spec:
 ```
 
 
+### AnsibleProject
+
+Create a project on AWX by creating an AnsibleProject resource.
+
+```
+---
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleProject
+metadata:
+  name: demo-project
+spec:
+  connection_secret: awx-access
+  name: Demo Project
+  organization: Default
+  scm_type: git
+  repo: https://github.com/ansible/ansible-tower-samples
+  branch: master
+  sync: true
+```
+
+Use the optional `execution_environment` field to set the project's default
+execution environment. It accepts the name or ID of an execution environment
+that already exists in AWX. The same environment is used for project updates
+and becomes the default execution environment for jobs that use this project.
+
+```
+spec:
+  execution_environment: beer-ee
+```
+
 ### AnsibleInventory
 
 Create an inventory on AWX by creating an AnsibleInventory resource.
@@ -256,6 +287,34 @@ spec:
       preserve_existing_hosts: true
       preserve_existing_children: true
 ```
+
+`spec.sources` 用于把 AWX 的 Inventory Source 交给 CR 管理。`source: scm` 对应 UI 上的 **Source from a Project**，由 project 中的 inventory 文件同步 Host 和 Group。`source_project` 必须是已经存在于 AWX 的 Project 名称。
+
+```yaml
+spec:
+  name: beer-inventory
+  organization: Default
+  connection_secret: awx-access
+  sources:
+    - name: beer-project-inventory
+      description: import hosts and groups from the project
+      source: scm
+      source_project: demo-project
+      source_path: inventory/hosts.yml
+      overwrite: true
+      overwrite_vars: true
+      update: true
+      wait: true
+      interval: 5
+      timeout: 600
+      state: present
+```
+
+接管 AWX 中已经存在的资源时，`spec.name` 必须与现有 Inventory 名称一致，`sources[].name` 必须与现有 Inventory Source 名称一致，`spec.organization` 也必须与现有 Inventory 所属组织一致；否则 operator 找不到对象时会新建同名资源。
+
+`update: true` 表示 runner 在创建或更新 Source 后立即触发一次同步，不是周期性同步。`wait: true` 会让 Job 等到这次同步结束。`overwrite: true` 会删除 Source 中已不存在的 Host/Group，首次接管现有资源时建议先用 `overwrite: false` 验证结果。
+
+由 project source 管理 Host/Group 时，建议保持 `spec.groups: []`，不要再用 `spec.groups` 管理同一批对象，避免两边互相覆盖。
 
 
 ### AnsibleGroup

@@ -2,4 +2,5 @@
 resources:
 - tower_v1alpha1_ansibleinventory-clone.yaml
 - tower_v1alpha1_ansibleinventory-new.yaml
+- tower_v1alpha1_ansibleinventory-source.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

@@ -49,6 +49,13 @@ spec:
               scm_type:
                 type: string
                 description: The SCM type of the project
+              execution_environment:
+                type: string
+                description: |
+                  Name or ID of an existing AWX Execution Environment to use as the
+                  project's default execution environment. It is used for project
+                  updates and becomes the default execution environment for jobs
+                  that use this project.
               description:
                 type: string
                 description: The description of the project

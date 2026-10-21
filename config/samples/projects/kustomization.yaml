@@ -3,4 +3,5 @@ resources:
 - tower_v1alpha1_ansibleproject-archive.yaml
 - tower_v1alpha1_ansibleproject-git-cred.yaml
 - tower_v1alpha1_ansibleproject-git.yaml
+- tower_v1alpha1_ansibleproject-git-ee.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

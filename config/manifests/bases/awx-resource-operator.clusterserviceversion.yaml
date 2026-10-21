@@ -444,6 +444,10 @@ spec:
         path: description
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Project Execution Environment
+        path: execution_environment
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       version: v1alpha1
     - description: Define a new Schedule in awx
       displayName: AWX Schedule

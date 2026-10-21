@@ -6,6 +6,7 @@
     _project_state: "{{ lookup('env', 'STATE') | default('present', true) }}"
     _project_sync: "{{ lookup('env', 'SYNC') | default('true', true) | bool }}"
     _scm_credential: "{{ lookup('env', 'SCM_CREDENTIAL') }}"
+    _default_environment: "{{ lookup('env', 'DEFAULT_ENVIRONMENT') | default('', true) }}"
 
 - name: Define project, then optionally synchronize it
   block:
@@ -18,6 +19,7 @@
         scm_type: "{{ lookup('env', 'SCM_TYPE') }}"
         scm_url: "{{ lookup('env', 'REPO') | default(omit, true) }}"
         scm_branch: "{{ lookup('env', 'BRANCH') | default(omit, true) }}"
+        default_environment: "{{ _default_environment if _default_environment | length > 0 else omit }}"
         state: "{{ _project_state }}"
       register: project
       when: _scm_credential == ''
@@ -32,6 +34,7 @@
         scm_url: "{{ lookup('env', 'REPO') | default(omit, true) }}"
         scm_branch: "{{ lookup('env', 'BRANCH') | default(omit, true) }}"
         scm_credential: "{{ _scm_credential }}"
+        default_environment: "{{ _default_environment if _default_environment | length > 0 else omit }}"
         state: "{{ _project_state }}"
       register: project
       when: _scm_credential != ''
@@ -77,3 +80,4 @@
         syncRequested: "{{ _project_sync }}"
         syncChanged: "{{ project_sync.changed | default(false) }}"
         syncStatus: "{{ project_sync.status | default('not_requested') }}"
+        defaultEnvironment: "{{ _default_environment }}"

@@ -98,6 +98,10 @@
   set_fact:
     _runner_pull_policy: "{{ runner_pull_policy | default('IfNotPresent') }}"
 
+- name: Set project default execution environment
+  set_fact:
+    _default_environment: "{{ execution_environment | default(default_environment | default('', true), true) }}"
+
 - name: Create ServiceAccount to run subsequent jobs
   kubernetes.core.k8s:
     state: present

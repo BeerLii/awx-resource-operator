@@ -1,0 +1,32 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleInventory
+metadata:
+  name: inventory-from-project
+spec:
+  connection_secret: awx-access
+  name: inventory-from-project
+  organization: Default
+  description: Inventory populated from a project SCM source
+  state: present
+  # Keep spec.groups empty when the project source owns hosts and groups,
+  # otherwise both controllers will fight over the same AWX objects.
+  groups: []
+  sources:
+    - name: inventory-from-project
+      description: Import hosts and groups from the project inventory file
+      source: scm
+      source_project: demo-project
+      # Optional: path relative to the project root. Omit it when the project
+      # has a single inventory file configured.
+      source_path: inventory/hosts.yml
+      update_on_launch: false
+      # Keep overwrite false on the first migration run so existing hosts and
+      # groups are not deleted if the imported inventory is incomplete.
+      overwrite: false
+      overwrite_vars: true
+      # The operator triggers the first sync after create/update.
+      update: true
+      wait: true
+      interval: 5
+      timeout: 600
+      state: present

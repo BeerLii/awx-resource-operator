@@ -1,0 +1,17 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleProject
+metadata:
+  name: git-with-ee
+spec:
+  repo: https://github.com/ansible/ansible-tower-samples
+  branch: master
+  name: ProjectDemo-git-ee
+  scm_type: git
+  organization: Default
+  description: demo project using a dedicated execution environment
+  connection_secret: awxaccess
+  runner_pull_policy: IfNotPresent
+  # Name (or ID) of an existing AWX Execution Environment. It is used for
+  # project updates and becomes the default EE for jobs using this project.
+  execution_environment: beer-ee
+  sync: true

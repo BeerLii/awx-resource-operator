@@ -19,6 +19,7 @@
   set_fact:
     _inventory_name: "{{ resource_info.resources[0].spec.name }}"
     _inventory_groups: "{{ resource_info.resources[0].spec.groups | default([]) }}"
+    _inventory_sources: "{{ resource_info.resources[0].spec.sources | default([]) }}"
 
 - name: Read dependent Kubernetes hosts
   kubernetes.core.k8s_info:
