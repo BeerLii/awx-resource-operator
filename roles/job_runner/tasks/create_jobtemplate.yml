@@ -4,8 +4,53 @@
     _spec: "{{ lookup('env', 'RUNNER_RESOURCE_SPEC') | from_json }}"
     _state: "{{ lookup('env', 'RUNNER_RESOURCE_STATE') | default('present', true) }}"
 
+# The awx.awx.job_template module takes a single list of credentials; its
+# legacy `vault_credential` option is a single value and is deprecated. Accept a
+# single string as a convenience, merge vault credentials into the same list,
+# and keep the deprecated job_template_* field names working.
+- name: Read raw JobTemplate credential values
+  set_fact:
+    _credentials_defined: >-
+      {{ (_spec.credentials is defined and _spec.credentials is not none) or
+         (_spec.job_template_credentials is defined and _spec.job_template_credentials is not none) }}
+    _vault_credentials_defined: >-
+      {{ (_spec.vault_credentials is defined and _spec.vault_credentials is not none) or
+         (_spec.job_template_vault_credentials is defined and _spec.job_template_vault_credentials is not none) }}
+    _credentials_raw: "{{ _spec.credentials if _spec.credentials is defined else _spec.job_template_credentials | default([], true) }}"
+    _vault_credentials_raw: "{{ _spec.vault_credentials if _spec.vault_credentials is defined else _spec.job_template_vault_credentials | default([], true) }}"
+
 - name: Manage AWX JobTemplate
   block:
+    - name: Validate JobTemplate credential values
+      ansible.builtin.assert:
+        that:
+          - _credentials_raw is none or _credentials_raw is string or _credentials_raw is number or
+            (_credentials_raw is sequence and _credentials_raw is not mapping)
+          - _vault_credentials_raw is none or _vault_credentials_raw is string or _vault_credentials_raw is number or
+            (_vault_credentials_raw is sequence and _vault_credentials_raw is not mapping)
+        fail_msg: >-
+          JobTemplate spec.credentials and spec.vault_credentials must be lists of
+          AWX credential names, IDs, or named URLs. A single string or ID is also
+          accepted.
+        quiet: true
+
+    - name: Normalize JobTemplate credentials to lists
+      set_fact:
+        _credentials: >-
+          {{ [] if _credentials_raw is none
+             else ([_credentials_raw] if _credentials_raw is string or _credentials_raw is number
+                   else _credentials_raw | list) }}
+        _vault_credentials: >-
+          {{ [] if _vault_credentials_raw is none
+             else ([_vault_credentials_raw] if _vault_credentials_raw is string or _vault_credentials_raw is number
+                   else _vault_credentials_raw | list) }}
+
+    # AWX associates credentials by ID without distinguishing vault credentials,
+    # so both fields are sent through the single `credentials` option.
+    - name: Merge vault credentials into the JobTemplate credential list
+      set_fact:
+        _all_credentials: "{{ (_credentials + _vault_credentials) | unique }}"
+
     - name: Create or update AWX JobTemplate
       awx.awx.job_template:
         name: "{{ _spec.name | default(_spec.job_template_name) }}"
@@ -13,8 +58,7 @@
         inventory: "{{ _spec.inventory | default(_spec.job_template_inventory) }}"
         project: "{{ _spec.project | default(_spec.job_template_project) }}"
         playbook: "{{ _spec.playbook | default(_spec.job_template_playbook) }}"
-        credentials: "{{ _spec.credentials | default(_spec.job_template_credentials | default(omit)) }}"
-        vault_credential: "{{ _spec.vault_credentials | default(_spec.job_template_vault_credentials | default(omit)) }}"
+        credentials: "{{ _all_credentials if (_credentials_defined | bool or _vault_credentials_defined | bool) else omit }}"
         forks: "{{ _spec.forks | default(_spec.job_template_forks | default(omit)) }}"
         limit: "{{ _spec.limit | default(_spec.job_template_limit | default(omit)) }}"
         verbosity: "{{ _spec.verbosity | default(_spec.job_template_verbosity | default(omit)) }}"

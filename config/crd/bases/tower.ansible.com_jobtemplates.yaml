@@ -60,6 +60,26 @@ spec:
               execution_environment:
                 type: string
                 description: The AWX Execution Environment name or ID for this Job Template
+              credentials:
+                type: array
+                description: |
+                  List of AWX Credential names, numeric IDs, or named URLs to associate
+                  with this Job Template. The credentials must already exist in AWX.
+                  When set, the list replaces the existing AWX credential associations.
+                items:
+                  x-kubernetes-int-or-string: true
+              vault_credentials:
+                type: array
+                description: |
+                  List of AWX Vault Credential names, numeric IDs, or named URLs to
+                  associate with this Job Template. The credentials must already exist
+                  in AWX. They are merged with spec.credentials into the single AWX
+                  credential association list.
+                items:
+                  x-kubernetes-int-or-string: true
+              ask_credential_on_launch:
+                type: boolean
+                description: Allow credentials to be supplied when launching the Job Template
               ask_variables_on_launch:
                 type: boolean
               ask_inventory_on_launch:

@@ -302,6 +302,21 @@ spec:
         path: project
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Credentials
+        description: AWX Credential names, IDs, or named URLs to associate with the Job Template
+        path: credentials
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:array
+      - displayName: Vault Credentials
+        description: AWX Vault Credential names, IDs, or named URLs to associate with the Job Template
+        path: vault_credentials
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:array
+      - displayName: Ask Credentials on Launch
+        description: Allow credentials to be supplied when launching the Job Template
+        path: ask_credential_on_launch
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
       - displayName: Job Template Ask Vars
         path: job_template_ask_vars
         x-descriptors:

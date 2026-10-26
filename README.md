@@ -199,6 +199,28 @@ spec:
   job_template_inventory: Demo Inventory
 ```
 
+Use the optional `credentials` and `vault_credentials` fields to attach
+existing AWX credentials to the job template. Both take a list of credential
+names, IDs, or named URLs, and the credentials must already exist in AWX (for
+example, created with `AnsibleCredential`). Vault credentials are merged into
+the same AWX credential association list.
+
+```
+spec:
+  credentials:
+    - Demo SSH Credential
+    - Demo Cloud Credential
+  vault_credentials:
+    - Demo Vault Credential
+```
+
+Leaving both fields out keeps the current AWX associations untouched. AWX
+replaces the whole credential association list on update, so as soon as either
+field is present, list every credential the job template should have (the two
+fields are merged into a single list, duplicates removed); setting them to `[]`
+removes all credential associations. Set `ask_credential_on_launch: true` if
+credentials should also be selectable when the job template is launched.
+
 
 ### AnsibleProject
 
