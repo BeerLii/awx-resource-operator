@@ -4,10 +4,15 @@
 #   * Was `quay.io/ansible/ansible-runner:latest`, which is CentOS Stream 8 and
 #     has not been rebuilt since 2022-04 (Stream 8 is EOL). Almost every RPM in
 #     it was unpatched, producing ~85 Critical/High CVEs with fixes available.
-#   * Now UBI9 Python 3.12 (minimal), a maintained RHEL 9 base that scans clean
-#     for Critical/High CVEs with an available fix and supports arbitrary-UID
-#     execution (OpenShift `restricted-v2` SCC).
-FROM registry.access.redhat.com/ubi9/python-312-minimal:latest
+#   * Now UBI10 Python 3.12 (minimal), a maintained RHEL 10 base with the
+#     current curl/OpenSSL/glibc/SQLite errata and arbitrary-UID support for
+#     OpenShift `restricted-v2` SCC.
+#
+# UBI9 is intentionally not used here: the security scan is still reporting
+# RHEL 9 package CVEs after the vendor backport/update cycle. Moving the
+# runtime to UBI10 removes that vulnerable package stream rather than relying
+# on a scanner to interpret vendor backports.
+FROM registry.access.redhat.com/ubi10/python-312-minimal:latest
 
 # Set this to a unique build identifier in CI so the security refresh layer is
 # never silently reused from an older image build.
