@@ -9,6 +9,10 @@
 #     execution (OpenShift `restricted-v2` SCC).
 FROM registry.access.redhat.com/ubi9/python-312-minimal:latest
 
+# Set this to a unique build identifier in CI so the security refresh layer is
+# never silently reused from an older image build.
+ARG SECURITY_REFRESH=manual
+
 # Build-time steps need to write into /runner and /opt/app-root.
 USER 0
 
@@ -17,7 +21,8 @@ USER 0
 # Refresh repository metadata before upgrading.  This is important for the
 # rolling UBI tag: without --refresh, a builder can reuse stale repodata and
 # leave vulnerable curl/OpenSSL/glibc/SQLite RPMs in the image.
-RUN microdnf --refresh -y --nodocs \
+RUN echo "Security refresh: ${SECURITY_REFRESH}" \
+ && microdnf --refresh -y --nodocs \
         --setopt=install_weak_deps=0 \
         --setopt=keepcache=0 \
         update \

@@ -46,6 +46,10 @@ jobs:
         with:
           context: .
           file: ${{ matrix.file }}
+          pull: true
+          no-cache: true
+          build-args: |
+            SECURITY_REFRESH=${{ github.run_id }}-${{ github.run_attempt }}
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}

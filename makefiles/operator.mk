@@ -40,7 +40,7 @@ operator-up: _operator-build-and-push _resource-build-runner _operator-deploy _o
 _resource-build-runner:
 	@if [ "$(BUILD_IMAGE)" != "true" ] || [ "$(BUILD_RUNNER)" != "true" ]; then exit 0; fi
 	@echo "Building runner image $(RUNNER_IMG)..."
-	@$(_CONTAINER_CMD) build -f Dockerfile.runner -t $(RUNNER_IMG) .
+	@$(_CONTAINER_CMD) build --pull --no-cache -f Dockerfile.runner -t $(RUNNER_IMG) .
 	@echo "Pushing $(RUNNER_IMG)..."
 	@$(_CONTAINER_CMD) push $(RUNNER_IMG)
 
@@ -89,7 +89,7 @@ awx-url: ## Discover AWX route URL (use AWX_NAMESPACE to set namespace, default:
 
 .PHONY: runner-build
 runner-build: ## Build job runner image.
-	$(_CONTAINER_CMD) build -f Dockerfile.runner -t $(RUNNER_IMG) .
+	$(_CONTAINER_CMD) build --pull --no-cache -f Dockerfile.runner -t $(RUNNER_IMG) .
 
 .PHONY: runner-push
 runner-push: ## Push job runner image.
@@ -97,5 +97,5 @@ runner-push: ## Push job runner image.
 
 .PHONY: runner-podman-buildx
 runner-podman-buildx: ## Build and push runner image for cross-platform support
-	podman build --platform=$(PLATFORMS) --manifest $(RUNNER_IMG) -f Dockerfile.runner .
+	podman build --pull --no-cache --platform=$(PLATFORMS) --manifest $(RUNNER_IMG) -f Dockerfile.runner .
 	podman manifest push --all $(RUNNER_IMG)

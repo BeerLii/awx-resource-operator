@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build runner container
-        run: podman build -f Dockerfile.runner -t ${{ env.RUNNER_IMAGE }}
+        run: podman build --pull --no-cache -f Dockerfile.runner -t ${{ env.RUNNER_IMAGE }}
 
       - name: archive runner image
         run: podman save ${RUNNER_IMAGE} > runner.tar
