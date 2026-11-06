@@ -60,6 +60,9 @@ spec:
               execution_environment:
                 type: string
                 description: The AWX Execution Environment name or ID for this Job Template
+              description:
+                type: string
+                description: The description of the Job Template in AWX
               credentials:
                 type: array
                 description: |

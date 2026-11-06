@@ -54,6 +54,7 @@
     - name: Create or update AWX JobTemplate
       awx.awx.job_template:
         name: "{{ _spec.name | default(_spec.job_template_name) }}"
+        description: "{{ _spec.description | default(_spec.job_template_description | default(omit)) }}"
         job_type: "{{ _spec.job_type | default(_spec.job_template_type | default('run')) }}"
         inventory: "{{ _spec.inventory | default(_spec.job_template_inventory) }}"
         project: "{{ _spec.project | default(_spec.job_template_project) }}"

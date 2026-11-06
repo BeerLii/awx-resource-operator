@@ -5,6 +5,7 @@ metadata:
 spec:
   tower_auth_secret: awxaccess
   name: ExampleJobTemplate
+  description: Example job template managed by the AWX Resource Operator
   project: Demo Project
   playbook: hello_world.yml
   inventory: Demo Inventory

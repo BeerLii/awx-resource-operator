@@ -302,6 +302,11 @@ spec:
         path: project
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - displayName: Job Template Description
+        description: The description of the Job Template in AWX
+        path: description
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       - displayName: Credentials
         description: AWX Credential names, IDs, or named URLs to associate with the Job Template
         path: credentials

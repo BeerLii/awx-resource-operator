@@ -199,6 +199,14 @@ spec:
   job_template_inventory: Demo Inventory
 ```
 
+Use the optional `description` field to set the description shown for the job
+template in AWX:
+
+```
+spec:
+  description: Deploys the demo application to the UAT environment
+```
+
 Use the optional `credentials` and `vault_credentials` fields to attach
 existing AWX credentials to the job template. Both take a list of credential
 names, IDs, or named URLs, and the credentials must already exist in AWX (for
