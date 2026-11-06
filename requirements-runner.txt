@@ -1,0 +1,8 @@
+# Python dependencies for the job runner image (Dockerfile.runner).
+# Keep versions pinned so the runtime CVE surface stays reproducible;
+# re-scan and bump periodically.
+ansible-core==2.18.19
+ansible-runner==2.4.3
+awxkit==24.6.1
+kubernetes==37.0.2
+openshift==0.13.2

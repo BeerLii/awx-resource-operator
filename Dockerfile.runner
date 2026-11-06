@@ -1,12 +1,40 @@
-FROM quay.io/ansible/ansible-runner:latest
-ENV ANSIBLE_ROLES_PATH ${HOME}/roles
+# Runner image used by the AnsibleJob pods spawned by the operator.
+#
+# Base image history:
+#   * Was `quay.io/ansible/ansible-runner:latest`, which is CentOS Stream 8 and
+#     has not been rebuilt since 2022-04 (Stream 8 is EOL). Almost every RPM in
+#     it was unpatched, producing ~85 Critical/High CVEs with fixes available.
+#   * Now UBI9 Python 3.12 (minimal), a maintained RHEL 9 base that scans clean
+#     for Critical/High CVEs with an available fix and supports arbitrary-UID
+#     execution (OpenShift `restricted-v2` SCC).
+FROM registry.access.redhat.com/ubi9/python-312-minimal:latest
 
-COPY requirements.yml ${HOME}/requirements.yml
+# Build-time steps need to write into /runner and /opt/app-root.
+USER 0
 
-RUN ansible-galaxy collection install -r ${HOME}/requirements.yml --force \
- && chmod -R ug+rwx ${HOME}/.ansible && mkdir -p ${HOME}/roles
+ENV HOME=/runner \
+    ANSIBLE_ROLES_PATH=/runner/roles \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1
 
-RUN pip3 install awxkit kubernetes openshift
+# Python deps are pinned in requirements-runner.txt so the installed surface
+# is reproducible and auditable.
+COPY requirements-runner.txt /tmp/requirements-runner.txt
+RUN pip3 install --no-cache-dir -r /tmp/requirements-runner.txt \
+ && rm -f /tmp/requirements-runner.txt
 
-COPY roles/job_runner ${HOME}/roles/job_runner
+COPY --chown=1001:0 requirements.yml /runner/requirements.yml
+RUN ansible-galaxy collection install -r /runner/requirements.yml --force \
+ && rm -f /runner/requirements.yml \
+ && mkdir -p /runner/roles \
+ && chgrp -R 0 /runner \
+ && chmod -R g+rwX /runner
+
+COPY --chown=1001:0 roles/job_runner /runner/roles/job_runner
+RUN chgrp -R 0 /runner && chmod -R g+rwX /runner
+
+# OpenShift injects an arbitrary UID with GID 0 at runtime; 1001 keeps plain
+# Kubernetes/kind consistent with the UBI default.
+USER 1001
+
 CMD ["ansible-runner", "run", "/runner", "--hosts", "localhost", "--role", "job_runner", "--role-skip-facts"]
