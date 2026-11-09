@@ -31,10 +31,19 @@ ENV HOME=/opt/ansible \
 # multi-architecture image.
 COPY --from=upstream /usr/local/lib64/python3.12/site-packages /usr/local/lib64/python3.12/site-packages
 COPY --from=upstream /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=upstream /usr/local/bin/ansible* /usr/local/bin/
+# Copy the full console-script set (ansible, ansible-galaxy, ansible-playbook,
+# ansible-runner, ...).  The scripts carry an absolute upstream interpreter
+# shebang, so create the corresponding python3 link in the UBI10 runtime.
+COPY --from=upstream /usr/local/bin/ /usr/local/bin/
 COPY --from=upstream /tini /tini
 
-RUN chmod +x /usr/local/bin/ansible-operator /tini \
+RUN PYTHON_BIN="$(command -v python3.12 || command -v python3)" \
+ && test -n "${PYTHON_BIN}" \
+ && ln -sf "${PYTHON_BIN}" /usr/local/bin/python3.12 \
+ && ln -sf "${PYTHON_BIN}" /usr/local/bin/python3 \
+ && ln -sf "${PYTHON_BIN}" /usr/local/bin/python \
+ && /usr/local/bin/python3 -c "import ansible, ansible_runner" \
+ && chmod +x /usr/local/bin/ansible-operator /tini \
  && mkdir -p /etc/ansible ${HOME}/.ansible/tmp \
  && printf '%s\n' 'localhost ansible_connection=local' > /etc/ansible/hosts \
  && printf '%s\n' '[defaults]' 'roles_path = /opt/ansible/roles' 'library = /usr/share/ansible/openshift' > /etc/ansible/ansible.cfg \
@@ -43,7 +52,7 @@ RUN chmod +x /usr/local/bin/ansible-operator /tini \
  && chmod -R ug+rwx ${HOME}
 
 COPY requirements.yml ${HOME}/requirements.yml
-RUN ansible-galaxy collection install -r ${HOME}/requirements.yml \
+RUN /usr/local/bin/ansible-galaxy collection install -r ${HOME}/requirements.yml \
  && chmod -R ug+rwx ${HOME}/.ansible \
  && rm -f ${HOME}/requirements.yml
 
